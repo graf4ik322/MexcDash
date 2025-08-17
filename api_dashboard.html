@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MEXC API Profit Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <style>
+        :root {
+            --primary-color: #007bff;
+            --success-color: #28a745;
+            --warning-color: #ffc107;
+            --danger-color: #dc3545;
+            --dark-color: #343a40;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        .navbar {
+            background: rgba(255, 255, 255, 0.95) !important;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 2px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        .main-container {
+            padding: 2rem 0;
+        }
+
+        .card {
+            border: none;
+            border-radius: 16px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+            backdrop-filter: blur(10px);
+            background: rgba(255, 255, 255, 0.95);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.15);
+        }
+
+        .api-config-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+        }
+
+        .summary-card {
+            background: linear-gradient(135deg, #28a745 0%, #20c997 100%);
+            color: white;
+        }
+
+        .pair-card {
+            border-radius: 12px;
+            margin-bottom: 1rem;
+            transition: all 0.3s ease;
+        }
+
+        .pair-card:hover {
+            transform: scale(1.02);
+        }
+
+        .profit-amount {
+            font-size: 1.5rem;
+            font-weight: bold;
+        }
+
+        .profit-positive {
+            color: var(--success-color);
+        }
+
+        .profit-negative {
+            color: var(--danger-color);
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 9999;
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid #f3f3f3;
+            border-top: 5px solid var(--primary-color);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .chart-container {
+            height: 400px;
+            margin: 2rem 0;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+            border: none;
+            border-radius: 8px;
+            padding: 0.75rem 1.5rem;
+            font-weight: 600;
+        }
+
+        .form-control {
+            border-radius: 8px;
+            border: 2px solid #e9ecef;
+            padding: 0.75rem;
+        }
+
+        .form-control:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+        }
+    </style>
+</head>
+<body>
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="text-center text-white">
+            <div class="spinner mb-3"></div>
+            <h5>Загрузка данных с MEXC API...</h5>
+            <p>Это может занять несколько минут</p>
+        </div>
+    </div>
+
+    <!-- Navbar -->
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container">
+            <a class="navbar-brand fw-bold" href="#">
+                <i class="fas fa-chart-line me-2"></i>
+                MEXC Profit Dashboard
+            </a>
+            <div class="navbar-nav ms-auto">
+                <span class="navbar-text">
+                    <i class="fas fa-info-circle me-1"></i>
+                    API Powered
+                </span>
+            </div>
+        </div>
+    </nav>
+
+    <div class="main-container">
+        <div class="container">
+            <!-- API Configuration -->
+            <div class="card api-config-card mb-4">
+                <div class="card-body">
+                    <h5 class="card-title mb-3">
+                        <i class="fas fa-key me-2"></i>
+                        API Configuration
+                    </h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="apiKey" class="form-label">API Key</label>
+                                <input type="password" class="form-control" id="apiKey" placeholder="Enter your MEXC API Key">
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label for="secretKey" class="form-label">Secret Key</label>
+                                <input type="password" class="form-control" id="secretKey" placeholder="Enter your MEXC Secret Key">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="startDate" class="form-label">Start Date</label>
+                                <input type="date" class="form-control" id="startDate">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label for="endDate" class="form-label">End Date</label>
+                                <input type="date" class="form-control" id="endDate">
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label class="form-label">&nbsp;</label>
+                                <button class="btn btn-light w-100" onclick="loadProfitData()">
+                                    <i class="fas fa-sync-alt me-2"></i>
+                                    Load Profit Data
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="row mb-4" id="summaryCards" style="display: none;">
+                <div class="col-md-3">
+                    <div class="card summary-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-dollar-sign fa-2x mb-2"></i>
+                            <h4 class="card-title" id="totalProfit">$0.00</h4>
+                            <p class="card-text">Total Profit</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card summary-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-coins fa-2x mb-2"></i>
+                            <h4 class="card-title" id="totalPairs">0</h4>
+                            <p class="card-text">Trading Pairs</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card summary-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-exchange-alt fa-2x mb-2"></i>
+                            <h4 class="card-title" id="totalTrades">0</h4>
+                            <p class="card-text">Total Trades</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card summary-card">
+                        <div class="card-body text-center">
+                            <i class="fas fa-percentage fa-2x mb-2"></i>
+                            <h4 class="card-title" id="profitablePairs">0%</h4>
+                            <p class="card-text">Profitable Pairs</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pair Cards -->
+            <div class="row" id="pairCards" style="display: none;">
+                <div class="col-12">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title mb-3">
+                                <i class="fas fa-list me-2"></i>
+                                Trading Pairs Profit
+                            </h5>
+                            <div class="mb-3">
+                                <select class="form-select" id="sortSelect" onchange="sortPairs()">
+                                    <option value="profit">Sort by Profit</option>
+                                    <option value="name">Sort by Name</option>
+                                    <option value="trades">Sort by Trades</option>
+                                </select>
+                            </div>
+                            <div id="pairsContainer"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="row mt-4" id="chartsSection" style="display: none;">
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Profit Distribution</h5>
+                            <div class="chart-container">
+                                <canvas id="profitChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="card">
+                        <div class="card-body">
+                            <h5 class="card-title">Top Profitable Pairs</h5>
+                            <div class="chart-container">
+                                <canvas id="pieChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+
+    <script>
+        class MexcProfitCalculator {
+            constructor(apiKey, secretKey) {
+                this.apiKey = apiKey;
+                this.secretKey = secretKey;
+                this.baseUrl = 'https://api.mexc.com';
+            }
+
+            // Генерация подписи для API запросов
+            generateSignature(queryString) {
+                return CryptoJS.HmacSHA256(queryString, this.secretKey).toString();
+            }
+
+            // Выполнение API запроса
+            async makeRequest(endpoint, params = {}) {
+                const timestamp = Date.now();
+                params.timestamp = timestamp;
+                
+                const queryString = Object.keys(params)
+                    .map(key => `${key}=${params[key]}`)
+                    .join('&');
+                
+                const signature = this.generateSignature(queryString);
+                const url = `${this.baseUrl}${endpoint}?${queryString}&signature=${signature}`;
+                
+                const response = await fetch(url, {
+                    headers: {
+                        'X-MEXC-APIKEY': this.apiKey
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`API Error: ${response.status} ${response.statusText}`);
+                }
+                
+                return await response.json();
+            }
+
+            // Получить историю сделок для пары
+            async getTradeHistory(symbol, startTime = null, endTime = null, limit = 1000) {
+                const params = { symbol, limit };
+                
+                if (startTime) params.startTime = startTime;
+                if (endTime) params.endTime = endTime;
+                
+                return await this.makeRequest('/api/v3/myTrades', params);
+            }
+
+            // Получить балансы аккаунта
+            async getAccountInfo() {
+                return await this.makeRequest('/api/v3/account');
+            }
+
+            // Рассчитать прибыль по паре
+            async calculatePairProfit(symbol, startTime = null, endTime = null) {
+                console.log(`Calculating profit for ${symbol}...`);
+                
+                // Получаем историю сделок
+                const trades = await this.getTradeHistory(symbol, startTime, endTime);
+                
+                let totalBuyValue = 0;
+                let totalSellValue = 0;
+                let totalFees = 0;
+                let totalBuyAmount = 0;
+                let totalSellAmount = 0;
+                
+                trades.forEach(trade => {
+                    const price = parseFloat(trade.price);
+                    const quantity = parseFloat(trade.qty);
+                    const quoteQty = parseFloat(trade.quoteQty);
+                    const commission = parseFloat(trade.commission);
+                    const isBuyer = trade.isBuyer;
+                    
+                    if (isBuyer) {
+                        // Покупка
+                        totalBuyValue += quoteQty;
+                        totalBuyAmount += quantity;
+                    } else {
+                        // Продажа
+                        totalSellValue += quoteQty;
+                        totalSellAmount += quantity;
+                    }
+                    
+                    totalFees += commission;
+                });
+                
+                // Рассчитываем чистую прибыль
+                const netProfit = totalSellValue - totalBuyValue - totalFees;
+                const profitPercentage = totalBuyValue > 0 ? (netProfit / totalBuyValue) * 100 : 0;
+                
+                return {
+                    symbol,
+                    totalBuyValue,
+                    totalSellValue,
+                    totalFees,
+                    totalBuyAmount,
+                    totalSellAmount,
+                    netProfit,
+                    profitPercentage,
+                    tradeCount: trades.length,
+                    buyCount: trades.filter(t => t.isBuyer).length,
+                    sellCount: trades.filter(t => !t.isBuyer).length
+                };
+            }
+
+            // Рассчитать прибыль по всем парам
+            async calculateAllPairsProfit(startTime = null, endTime = null) {
+                // Получаем информацию об аккаунте
+                const accountInfo = await this.getAccountInfo();
+                
+                // Фильтруем активы с ненулевым балансом
+                const activeAssets = accountInfo.balances.filter(balance => {
+                    const free = parseFloat(balance.free);
+                    const locked = parseFloat(balance.locked);
+                    return (free + locked) > 0;
+                });
+                
+                const results = {};
+                
+                // Рассчитываем прибыль для каждой активной пары
+                for (const asset of activeAssets) {
+                    if (asset.asset === 'USDT') continue; // Пропускаем USDT
+                    
+                    const symbol = `${asset.asset}USDT`;
+                    
+                    try {
+                        const profit = await this.calculatePairProfit(symbol, startTime, endTime);
+                        if (profit.tradeCount > 0) {
+                            results[symbol] = profit;
+                        }
+                    } catch (error) {
+                        console.log(`Error calculating profit for ${symbol}:`, error.message);
+                    }
+                }
+                
+                return results;
+            }
+
+            // Получить сводку по прибыли
+            async getProfitSummary(startTime = null, endTime = null) {
+                const pairsProfit = await this.calculateAllPairsProfit(startTime, endTime);
+                
+                let totalProfit = 0;
+                let totalFees = 0;
+                let totalTrades = 0;
+                let profitablePairs = 0;
+                
+                Object.values(pairsProfit).forEach(pair => {
+                    totalProfit += pair.netProfit;
+                    totalFees += pair.totalFees;
+                    totalTrades += pair.tradeCount;
+                    if (pair.netProfit > 0) profitablePairs++;
+                });
+                
+                return {
+                    totalProfit,
+                    totalFees,
+                    totalTrades,
+                    totalPairs: Object.keys(pairsProfit).length,
+                    profitablePairs,
+                    pairsProfit
+                };
+            }
+        }
+
+        let calculator = null;
+        let currentData = null;
+
+        function showLoading() {
+            document.getElementById('loadingOverlay').style.display = 'flex';
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').style.display = 'none';
+        }
+
+        function formatCurrency(amount) {
+            return new Intl.NumberFormat('en-US', {
+                style: 'currency',
+                currency: 'USD',
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2
+            }).format(amount);
+        }
+
+        async function loadProfitData() {
+            const apiKey = document.getElementById('apiKey').value.trim();
+            const secretKey = document.getElementById('secretKey').value.trim();
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+
+            if (!apiKey || !secretKey) {
+                alert('Please enter both API Key and Secret Key');
+                return;
+            }
+
+            showLoading();
+
+            try {
+                calculator = new MexcProfitCalculator(apiKey, secretKey);
+                
+                let startTime = null;
+                let endTime = null;
+                
+                if (startDate) {
+                    startTime = new Date(startDate).getTime();
+                }
+                if (endDate) {
+                    endTime = new Date(endDate).getTime();
+                }
+
+                const summary = await calculator.getProfitSummary(startTime, endTime);
+                currentData = summary;
+
+                updateSummaryCards(summary);
+                updatePairCards(summary.pairsProfit);
+                updateCharts(summary.pairsProfit);
+
+                document.getElementById('summaryCards').style.display = 'block';
+                document.getElementById('pairCards').style.display = 'block';
+                document.getElementById('chartsSection').style.display = 'block';
+
+            } catch (error) {
+                console.error('Error:', error);
+                alert(`Error loading data: ${error.message}`);
+            } finally {
+                hideLoading();
+            }
+        }
+
+        function updateSummaryCards(summary) {
+            document.getElementById('totalProfit').textContent = formatCurrency(summary.totalProfit);
+            document.getElementById('totalPairs').textContent = summary.totalPairs;
+            document.getElementById('totalTrades').textContent = summary.totalTrades;
+            
+            const profitablePercentage = summary.totalPairs > 0 
+                ? Math.round((summary.profitablePairs / summary.totalPairs) * 100) 
+                : 0;
+            document.getElementById('profitablePairs').textContent = `${profitablePercentage}%`;
+        }
+
+        function updatePairCards(pairsProfit) {
+            const container = document.getElementById('pairsContainer');
+            const pairs = Object.values(pairsProfit).sort((a, b) => b.netProfit - a.netProfit);
+            
+            let html = '';
+            pairs.forEach(pair => {
+                const profitClass = pair.netProfit >= 0 ? 'profit-positive' : 'profit-negative';
+                html += `
+                    <div class="card pair-card">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <h6 class="card-title mb-1">${pair.symbol}</h6>
+                                    <small class="text-muted">${pair.tradeCount} trades</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="profit-amount ${profitClass}">
+                                        ${formatCurrency(pair.netProfit)}
+                                    </div>
+                                    <small class="text-muted">${pair.profitPercentage.toFixed(2)}%</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <small class="text-muted">Buy</small>
+                                            <div>${formatCurrency(pair.totalBuyValue)}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Sell</small>
+                                            <div>${formatCurrency(pair.totalSellValue)}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Fees</small>
+                                            <div>${formatCurrency(pair.totalFees)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function sortPairs() {
+            if (!currentData) return;
+            
+            const sortBy = document.getElementById('sortSelect').value;
+            const pairs = Object.values(currentData.pairsProfit);
+            
+            switch (sortBy) {
+                case 'profit':
+                    pairs.sort((a, b) => b.netProfit - a.netProfit);
+                    break;
+                case 'name':
+                    pairs.sort((a, b) => a.symbol.localeCompare(b.symbol));
+                    break;
+                case 'trades':
+                    pairs.sort((a, b) => b.tradeCount - a.tradeCount);
+                    break;
+            }
+            
+            const container = document.getElementById('pairsContainer');
+            let html = '';
+            pairs.forEach(pair => {
+                const profitClass = pair.netProfit >= 0 ? 'profit-positive' : 'profit-negative';
+                html += `
+                    <div class="card pair-card">
+                        <div class="card-body">
+                            <div class="row align-items-center">
+                                <div class="col-md-3">
+                                    <h6 class="card-title mb-1">${pair.symbol}</h6>
+                                    <small class="text-muted">${pair.tradeCount} trades</small>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="profit-amount ${profitClass}">
+                                        ${formatCurrency(pair.netProfit)}
+                                    </div>
+                                    <small class="text-muted">${pair.profitPercentage.toFixed(2)}%</small>
+                                </div>
+                                <div class="col-md-6">
+                                    <div class="row text-center">
+                                        <div class="col-4">
+                                            <small class="text-muted">Buy</small>
+                                            <div>${formatCurrency(pair.totalBuyValue)}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Sell</small>
+                                            <div>${formatCurrency(pair.totalSellValue)}</div>
+                                        </div>
+                                        <div class="col-4">
+                                            <small class="text-muted">Fees</small>
+                                            <div>${formatCurrency(pair.totalFees)}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            container.innerHTML = html;
+        }
+
+        function updateCharts(pairsProfit) {
+            const pairs = Object.values(pairsProfit).sort((a, b) => b.netProfit - a.netProfit);
+            
+            // Profit Chart
+            const profitCtx = document.getElementById('profitChart').getContext('2d');
+            new Chart(profitCtx, {
+                type: 'bar',
+                data: {
+                    labels: pairs.slice(0, 10).map(p => p.symbol),
+                    datasets: [{
+                        label: 'Net Profit (USD)',
+                        data: pairs.slice(0, 10).map(p => p.netProfit),
+                        backgroundColor: pairs.slice(0, 10).map(p => p.netProfit >= 0 ? '#28a745' : '#dc3545'),
+                        borderColor: pairs.slice(0, 10).map(p => p.netProfit >= 0 ? '#20c997' : '#c82333'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+
+            // Pie Chart
+            const pieCtx = document.getElementById('pieChart').getContext('2d');
+            const profitablePairs = pairs.filter(p => p.netProfit > 0).slice(0, 8);
+            new Chart(pieCtx, {
+                type: 'doughnut',
+                data: {
+                    labels: profitablePairs.map(p => p.symbol),
+                    datasets: [{
+                        data: profitablePairs.map(p => p.netProfit),
+                        backgroundColor: [
+                            '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0',
+                            '#9966FF', '#FF9F40', '#FF6384', '#C9CBCF'
+                        ]
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            position: 'bottom'
+                        }
+                    }
+                }
+            });
+        }
+
+        // Set default dates
+        document.addEventListener('DOMContentLoaded', function() {
+            const today = new Date();
+            const oneMonthAgo = new Date();
+            oneMonthAgo.setMonth(today.getMonth() - 1);
+            
+            document.getElementById('startDate').value = oneMonthAgo.toISOString().split('T')[0];
+            document.getElementById('endDate').value = today.toISOString().split('T')[0];
+        });
+    </script>
+</body>
+</html>
