@@ -16,8 +16,8 @@ class DataParser {
             role: ['Role', 'Maker/Taker', 'Type', 'Order Type']
         };
         
-        // Direct mapping for known column names from the file
-        this.directMapping = {
+        // Exact mapping for the specific XLSX file headers
+        this.exactHeaders = {
             'Pairs': 'Pairs',
             'Time': 'Time', 
             'Side': 'Side',
@@ -354,20 +354,20 @@ class DataParser {
     // Find column mapping for a field
     findColumnMapping(row, fieldType) {
         const headers = Object.keys(row);
-        const possibleColumns = this.supportedColumns[fieldType] || [];
         
-        // First, try direct mapping for known column names
+        // First, try exact header match for the specific XLSX file
         for (const header of headers) {
-            if (this.directMapping[header]) {
-                const mappedField = this.directMapping[header];
+            if (this.exactHeaders[header]) {
+                const mappedField = this.exactHeaders[header];
                 if (this.supportedColumns[fieldType].includes(mappedField)) {
-                    console.log(`Found direct mapping for ${fieldType}: ${header} -> ${mappedField}`);
+                    console.log(`Found exact header match for ${fieldType}: ${header}`);
                     return header;
                 }
             }
         }
         
         // Then, try exact match (case insensitive)
+        const possibleColumns = this.supportedColumns[fieldType] || [];
         for (const header of headers) {
             for (const possibleCol of possibleColumns) {
                 if (header.toLowerCase() === possibleCol.toLowerCase()) {
@@ -384,28 +384,6 @@ class DataParser {
                     possibleCol.toLowerCase().includes(header.toLowerCase())) {
                     console.log(`Found partial match for ${fieldType}: ${header} -> ${possibleCol}`);
                     return header;
-                }
-            }
-        }
-        
-        // Try fuzzy matching for common variations
-        const fuzzyMatches = {
-            time: ['time', 'date', 'created', 'execution', 'fill', 'order'],
-            side: ['side', 'type', 'direction', 'buy', 'sell', 'action'],
-            total: ['total', 'value', 'amount', 'gross', 'net', 'notional'],
-            pairs: ['pair', 'symbol', 'market', 'instrument', 'asset'],
-            price: ['price', 'rate', 'cost'],
-            amount: ['amount', 'quantity', 'size', 'volume'],
-            fee: ['fee', 'commission', 'cost']
-        };
-        
-        if (fuzzyMatches[fieldType]) {
-            for (const header of headers) {
-                for (const fuzzyTerm of fuzzyMatches[fieldType]) {
-                    if (header.toLowerCase().includes(fuzzyTerm)) {
-                        console.log(`Found fuzzy match for ${fieldType}: ${header} -> ${fuzzyTerm}`);
-                        return header;
-                    }
                 }
             }
         }
