@@ -242,7 +242,7 @@ class Utils {
     }
 
     // Calculate clean profit by trading pairs
-    // New approach: track each pair separately and calculate realized profit
+    // Simple approach: Total Sell - Total Buy - Fees = Net Profit
     static calculatePairProfit(trades) {
         console.log('Calculating pair profit for', trades.length, 'trades');
         
@@ -271,9 +271,7 @@ class Utils {
                         amount: 0,
                         cost: 0,
                         avgPrice: 0
-                    },
-                    realizedProfit: 0,
-                    unrealizedProfit: 0
+                    }
                 };
             }
             
@@ -310,18 +308,11 @@ class Utils {
                 pairData[pair].totalSellAmount += amount;
                 pairData[pair].totalSellValue += total;
                 
-                // Calculate realized profit from this sell
+                console.log(`${pair} SELL: ${amount} @ ${price} = ${total}`);
+                
+                // Update position
                 const current = pairData[pair].currentPosition;
                 if (current.amount > 0) {
-                    const buyValue = amount * current.avgPrice;
-                    const realizedProfit = total - buyValue - fee;
-                    pairData[pair].realizedProfit += realizedProfit;
-                    
-                    console.log(`${pair} SELL: ${amount} @ ${price} = ${total}`);
-                    console.log(`  Buy value: ${amount} * ${current.avgPrice.toFixed(6)} = ${buyValue.toFixed(2)}`);
-                    console.log(`  Profit: ${total} - ${buyValue.toFixed(2)} - ${fee} = ${realizedProfit.toFixed(2)}`);
-                    
-                    // Update position
                     current.amount -= amount;
                     if (current.amount <= 0) {
                         current.amount = 0;
@@ -333,17 +324,17 @@ class Utils {
                         console.log(`  New position: ${current.amount} @ ${current.avgPrice.toFixed(6)} = ${current.cost.toFixed(2)}`);
                     }
                 } else {
-                    console.log(`${pair} SELL: ${amount} @ ${price} = ${total} (no position to close)`);
+                    console.log(`  No position to close`);
                 }
             }
         });
         
-        // Calculate final statistics
+        // Calculate final statistics with simple formula
         Object.keys(pairData).forEach(pairKey => {
             const pair = pairData[pairKey];
             
-            // Calculate net profit (only realized profit)
-            pair.netProfit = pair.realizedProfit;
+            // Simple profit calculation: Total Sell - Total Buy - Fees
+            pair.netProfit = pair.totalSellValue - pair.totalBuyValue - pair.totalFees;
             
             // Calculate profit percentage based on total buy value
             if (pair.totalBuyValue > 0) {
@@ -360,10 +351,10 @@ class Utils {
             console.log(`${pair.pair} FINAL:`, {
                 buyValue: pair.totalBuyValue.toFixed(2),
                 sellValue: pair.totalSellValue.toFixed(2),
-                realizedProfit: pair.realizedProfit.toFixed(2),
                 fees: pair.totalFees.toFixed(2),
-                currentPosition: pair.currentPosition.amount.toFixed(6),
-                profitPercentage: pair.profitPercentage.toFixed(2) + '%'
+                netProfit: pair.netProfit.toFixed(2),
+                profitPercentage: pair.profitPercentage.toFixed(2) + '%',
+                currentPosition: pair.currentPosition.amount.toFixed(6)
             });
         });
         
@@ -432,7 +423,7 @@ class Utils {
                 totalBuyValue += pair.totalBuyValue;
                 totalSellValue += pair.totalSellValue;
                 totalFees += pair.totalFees;
-                totalProfit += pair.realizedProfit;
+                totalProfit += pair.netProfit; // Use netProfit for total
                 tradeCount += pair.tradeCount;
                 
                 pairs[pair.pair] = {
@@ -440,7 +431,7 @@ class Utils {
                     buyValue: pair.totalBuyValue,
                     sellValue: pair.totalSellValue,
                     fees: pair.totalFees,
-                    profit: pair.realizedProfit,
+                    profit: pair.netProfit, // Use netProfit for profit
                     buyCount: pair.buyCount,
                     sellCount: pair.sellCount
                 };
