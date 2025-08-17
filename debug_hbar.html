@@ -26,6 +26,19 @@
     
     <div id="results"></div>
     
+    <!-- Hidden elements needed by DataParser -->
+    <div id="loadingOverlay" class="d-none"></div>
+    <div id="errorToast" class="toast d-none">
+        <div class="toast-header">
+            <i class="bi bi-exclamation-triangle me-2"></i>
+            <strong class="me-auto">Ошибка</strong>
+            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
+        </div>
+        <div class="toast-body">
+            Произошла ошибка при обработке файла
+        </div>
+    </div>
+    
     <script src="js/utils.js"></script>
     <script src="js/data-parser.js"></script>
     
