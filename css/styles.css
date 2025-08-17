@@ -1,0 +1,114 @@
+/* Monthly Cards */
+.monthly-card {
+    background: var(--card-bg);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    transition: all 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.monthly-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+}
+
+.monthly-card.profit {
+    border-left: 4px solid var(--profit-color);
+}
+
+.monthly-card.loss {
+    border-left: 4px solid var(--loss-color);
+}
+
+.monthly-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.monthly-card-title h5 {
+    color: var(--text-color);
+    font-weight: 600;
+}
+
+.monthly-card-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.monthly-card-status.profit {
+    background: var(--profit-color);
+}
+
+.monthly-card-status.loss {
+    background: var(--loss-color);
+}
+
+.monthly-card-profit {
+    text-align: center;
+    margin-bottom: 1.5rem;
+}
+
+.monthly-card-profit.profit {
+    color: var(--profit-color);
+}
+
+.monthly-card-profit.loss {
+    color: var(--loss-color);
+}
+
+.monthly-card-stats {
+    margin-bottom: 1.5rem;
+}
+
+.monthly-card-details {
+    margin-bottom: 1rem;
+}
+
+.monthly-card-pairs {
+    border-top: 1px solid var(--border-color);
+    padding-top: 1rem;
+}
+
+.monthly-card-pairs h6 {
+    color: var(--text-color);
+    font-weight: 600;
+    margin-bottom: 0.75rem;
+}
+
+.pairs-list {
+    max-height: 150px;
+    overflow-y: auto;
+}
+
+.pair-item {
+    padding: 0.25rem 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.pair-item:last-child {
+    border-bottom: none;
+}
+
+.pair-name {
+    font-size: 0.875rem;
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.pair-profit {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+.pair-profit.profit {
+    color: var(--profit-color);
+}
+
+.pair-profit.loss {
+    color: var(--loss-color);
+}

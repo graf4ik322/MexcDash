@@ -241,6 +241,104 @@ class Utils {
         return grouped;
     }
 
+    // Calculate monthly P&L statistics from trades
+    // New approach: calculate profit by month and by trading pair
+    static calculateMonthlyStats(trades) {
+        console.log('Calculating monthly stats for', trades.length, 'trades');
+        
+        // Group trades by month and pair
+        const monthlyData = {};
+        
+        trades.forEach(trade => {
+            const pair = trade.Pairs || 'UNKNOWN';
+            const total = parseFloat(trade.Total) || 0;
+            const fee = parseFloat(trade.Fee) || 0;
+            const side = trade.Side;
+            const time = trade.Time;
+            
+            if (!time) {
+                console.warn('Trade missing time:', trade);
+                return;
+            }
+            
+            // Parse date and get month key (YYYY-MM)
+            const date = moment(time);
+            if (!date.isValid()) {
+                console.warn('Invalid date:', time);
+                return;
+            }
+            
+            const monthKey = date.format('YYYY-MM');
+            const monthName = date.format('MMMM YYYY');
+            
+            if (!monthlyData[monthKey]) {
+                monthlyData[monthKey] = {
+                    monthKey: monthKey,
+                    monthName: monthName,
+                    pairs: {},
+                    totalBuyValue: 0,
+                    totalSellValue: 0,
+                    totalFees: 0,
+                    totalProfit: 0,
+                    tradeCount: 0
+                };
+            }
+            
+            if (!monthlyData[monthKey].pairs[pair]) {
+                monthlyData[monthKey].pairs[pair] = {
+                    pair: pair,
+                    buyValue: 0,
+                    sellValue: 0,
+                    fees: 0,
+                    profit: 0,
+                    buyCount: 0,
+                    sellCount: 0
+                };
+            }
+            
+            // Update monthly totals
+            monthlyData[monthKey].tradeCount++;
+            monthlyData[monthKey].totalFees += fee;
+            
+            // Update pair totals
+            monthlyData[monthKey].pairs[pair].fees += fee;
+            
+            if (side === 'Buy') {
+                monthlyData[monthKey].totalBuyValue += total;
+                monthlyData[monthKey].pairs[pair].buyValue += total;
+                monthlyData[monthKey].pairs[pair].buyCount++;
+            } else if (side === 'Sell') {
+                monthlyData[monthKey].totalSellValue += total;
+                monthlyData[monthKey].pairs[pair].sellValue += total;
+                monthlyData[monthKey].pairs[pair].sellCount++;
+            }
+        });
+        
+        // Calculate profits for each month and pair
+        Object.keys(monthlyData).forEach(monthKey => {
+            const month = monthlyData[monthKey];
+            
+            // Calculate total profit for the month
+            month.totalProfit = month.totalSellValue - month.totalBuyValue - month.totalFees;
+            
+            // Calculate profit for each pair
+            Object.keys(month.pairs).forEach(pairKey => {
+                const pair = month.pairs[pairKey];
+                pair.profit = pair.sellValue - pair.buyValue - pair.fees;
+            });
+            
+            console.log(`Month ${month.monthName}:`, {
+                buyValue: month.totalBuyValue.toFixed(2),
+                sellValue: month.totalSellValue.toFixed(2),
+                fees: month.totalFees.toFixed(2),
+                profit: month.totalProfit.toFixed(2),
+                pairs: Object.keys(month.pairs).length
+            });
+        });
+        
+        return monthlyData;
+    }
+
     // Calculate daily statistics from trades with proper P&L tracking for grid trading
     // This function tracks positions across days and calculates only realized profits
     static calculateDailyStats(trades, options = {}) {

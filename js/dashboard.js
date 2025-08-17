@@ -82,8 +82,11 @@ class Dashboard {
             console.log('File loaded successfully:', result);
             
             this.dailyData = result.daily;
+            this.monthlyData = result.monthly;
             console.log('Daily data set:', this.dailyData);
+            console.log('Monthly data set:', this.monthlyData);
             console.log('Number of days:', Object.keys(this.dailyData).length);
+            console.log('Number of months:', Object.keys(this.monthlyData).length);
             
             this.updateDashboard();
             this.showDashboard();
@@ -143,6 +146,7 @@ class Dashboard {
     updateDashboard() {
         console.log('updateDashboard called');
         console.log('this.dailyData:', this.dailyData);
+        console.log('this.monthlyData:', this.monthlyData);
         
         if (!this.dailyData) {
             console.log('No daily data available');
@@ -154,6 +158,7 @@ class Dashboard {
         console.log('Number of filtered days:', Object.keys(this.filteredData).length);
         
         this.renderCards();
+        this.renderMonthlyCards();
         this.renderSummary();
         this.updateCharts();
         
@@ -289,6 +294,118 @@ class Dashboard {
             const card = this.createDailyCard(dayData);
             container.appendChild(card);
         });
+    }
+
+    // Render monthly cards
+    renderMonthlyCards() {
+        const container = document.getElementById('monthlyCards');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (!this.monthlyData || Object.keys(this.monthlyData).length === 0) {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Нет месячных данных для отображения
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        const sortedMonths = Object.keys(this.monthlyData).sort().reverse();
+        
+        sortedMonths.forEach(monthKey => {
+            const monthData = this.monthlyData[monthKey];
+            const card = this.createMonthlyCard(monthData);
+            container.appendChild(card);
+        });
+    }
+
+    // Create monthly card element
+    createMonthlyCard(monthData) {
+        const col = document.createElement('div');
+        col.className = 'col-lg-4 col-md-6 col-sm-12';
+        
+        const profitClass = Utils.getProfitClass(monthData.totalProfit);
+        const profitIcon = Utils.getProfitIcon(monthData.totalProfit);
+        
+        col.innerHTML = `
+            <div class="monthly-card ${profitClass} fade-in">
+                <div class="monthly-card-header">
+                    <div class="monthly-card-title">
+                        <h5 class="mb-0">${monthData.monthName}</h5>
+                    </div>
+                    <div class="monthly-card-status ${profitClass}"></div>
+                </div>
+                
+                <div class="monthly-card-profit ${profitClass} mb-3">
+                    <span class="fs-3 fw-bold">${Utils.formatCurrency(monthData.totalProfit)}</span>
+                </div>
+                
+                <div class="monthly-card-stats mb-3">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="text-muted small">Покупки</div>
+                                <div class="fw-bold text-info">${Utils.formatCurrency(monthData.totalBuyValue)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="text-muted small">Продажи</div>
+                                <div class="fw-bold text-success">${Utils.formatCurrency(monthData.totalSellValue)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="monthly-card-details">
+                    <div class="row g-2">
+                        <div class="col-4">
+                            <div class="text-center">
+                                <div class="text-muted small">Сделок</div>
+                                <div class="fw-bold">${monthData.tradeCount}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center">
+                                <div class="text-muted small">Пар</div>
+                                <div class="fw-bold">${Object.keys(monthData.pairs).length}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center">
+                                <div class="text-muted small">Комиссии</div>
+                                <div class="fw-semibold text-warning">${Utils.formatCurrency(monthData.totalFees)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="monthly-card-pairs mt-3">
+                    <h6 class="mb-2">Прибыль по парам:</h6>
+                    <div class="pairs-list">
+                        ${Object.values(monthData.pairs)
+                            .filter(pair => pair.profit !== 0)
+                            .sort((a, b) => Math.abs(b.profit) - Math.abs(a.profit))
+                            .slice(0, 5)
+                            .map(pair => `
+                                <div class="pair-item d-flex justify-content-between align-items-center mb-1">
+                                    <span class="pair-name">${pair.pair}</span>
+                                    <span class="pair-profit ${Utils.getProfitClass(pair.profit)}">
+                                        ${Utils.formatCurrency(pair.profit)}
+                                    </span>
+                                </div>
+                            `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        return col;
     }
 
     // Get count of open positions for a day

@@ -56,6 +56,9 @@ class DataParser {
             // Calculate daily stats with simple P&L tracking
             this.dailyStats = Utils.calculateDailyStats(this.processedData);
             
+            // Calculate monthly stats with new P&L approach
+            this.monthlyStats = Utils.calculateMonthlyStats(this.processedData);
+            
             // Store processed data for recalculation
             this.rawProcessedData = this.processedData;
 
@@ -65,7 +68,8 @@ class DataParser {
             return {
                 raw: this.rawData,
                 processed: this.processedData,
-                daily: this.dailyStats
+                daily: this.dailyStats,
+                monthly: this.monthlyStats
             };
 
         } catch (error) {
@@ -545,6 +549,11 @@ class DataParser {
     // Get daily statistics
     getDailyStats() {
         return this.dailyStats;
+    }
+
+    // Get monthly statistics
+    getMonthlyStats() {
+        return this.monthlyStats;
     }
 
     // Get data summary
