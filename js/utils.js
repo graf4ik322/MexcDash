@@ -289,11 +289,10 @@ class Utils {
                 pairStats[pair].fees += fee;
             });
             
-            // For GRID TRADING calculation:
-            // - Multiple buys accumulate inventory at different price levels
-            // - Each sell represents a completed profitable trade when target % is reached
-            // - Daily profit = Total sells - Total buys - Total fees
-            // - This gives us the net profit from grid operations
+            // For GRID TRADING calculation (NO STOP-LOSS):
+            // The key insight: if there are no stop-losses, negative days occur because
+            // more buying (accumulation) than selling on that day
+            // But the actual profit should be calculated as net difference
             
             let totalBuyValue = 0;
             let totalSellValue = 0;
@@ -305,8 +304,12 @@ class Utils {
             });
             
             // Grid trading profit calculation
-            // Each sell is a completed profitable operation from the grid
-            const totalProfit = totalSellValue - totalBuyValue - totalFees;
+            // Net result for the day (this can be negative if more accumulation than closing)
+            let totalProfit = totalSellValue - totalBuyValue - totalFees;
+            
+            // However, if you want to show only "realized" profit from sells:
+            // Uncomment the line below and comment the line above
+            // totalProfit = totalSellValue > 0 ? totalSellValue * 0.02 : 0; // Assume 2% profit margin on sells
             
             // For grid trading, win rate is based on sell operations
             // Each sell should be profitable since grid bots sell at target profit %

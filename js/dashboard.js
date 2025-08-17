@@ -57,6 +57,11 @@ class Dashboard {
             this.exportData();
         });
 
+        // Show only profit days toggle
+        document.getElementById('showOnlyProfitDays').addEventListener('change', (e) => {
+            this.updateDashboard();
+        });
+
         // File input change
         document.getElementById('fileInput').addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
@@ -233,7 +238,29 @@ class Dashboard {
         
         const sortedDates = this.getSortedDates();
         
-        sortedDates.forEach(date => {
+        // For grid trading, optionally filter to show only days with sells (completed operations)
+        const showOnlyProfitDays = document.getElementById('showOnlyProfitDays').checked;
+        const daysToShow = sortedDates.filter(date => {
+            const dayData = this.filteredData[date];
+            if (showOnlyProfitDays) {
+                return dayData.sellCount > 0; // Show only days with sales
+            }
+            return true; // Show all days
+        });
+        
+        if (daysToShow.length === 0) {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-warning">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Нет завершенных операций (продаж) в выбранном периоде
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        daysToShow.forEach(date => {
             const dayData = this.filteredData[date];
             const card = this.createDailyCard(dayData);
             container.appendChild(card);
