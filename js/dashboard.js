@@ -148,21 +148,16 @@ class Dashboard {
     // Update dashboard with current filters
     updateDashboard() {
         console.log('updateDashboard called');
-        console.log('this.dailyData:', this.dailyData);
+        console.log('this.pairData:', this.pairData);
         console.log('this.monthlyData:', this.monthlyData);
         
-        if (!this.dailyData) {
-            console.log('No daily data available');
+        if (!this.pairData) {
+            console.log('No pair data available');
             return;
         }
         
-        this.filteredData = this.getFilteredData();
-        console.log('Filtered data:', this.filteredData);
-        console.log('Number of filtered days:', Object.keys(this.filteredData).length);
-        
-        this.renderCards();
+        this.renderPairCards();
         this.renderMonthlyCards();
-        this.renderPairCards(); // Added this line
         this.renderSummary();
         this.updateCharts();
         
@@ -360,80 +355,70 @@ class Dashboard {
     // Create monthly card element
     createMonthlyCard(monthData) {
         const col = document.createElement('div');
-        col.className = 'col-lg-4 col-md-6 col-sm-12';
+        col.className = 'col-lg-6 col-md-12 col-sm-12';
         
         const profitClass = Utils.getProfitClass(monthData.totalProfit);
         const profitIcon = Utils.getProfitIcon(monthData.totalProfit);
+        
+        // Get top pairs by profit
+        const topPairs = Object.values(monthData.pairs)
+            .filter(pair => pair.profit !== 0)
+            .sort((a, b) => Math.abs(b.profit) - Math.abs(a.profit))
+            .slice(0, 8);
         
         col.innerHTML = `
             <div class="monthly-card ${profitClass} fade-in">
                 <div class="monthly-card-header">
                     <div class="monthly-card-title">
                         <h5 class="mb-0">${monthData.monthName}</h5>
+                        <div class="monthly-subtitle">${monthData.tradeCount} сделок, ${Object.keys(monthData.pairs).length} пар</div>
                     </div>
                     <div class="monthly-card-status ${profitClass}"></div>
                 </div>
                 
-                <div class="monthly-card-profit ${profitClass} mb-3">
-                    <span class="fs-3 fw-bold">${Utils.formatCurrency(monthData.totalProfit)}</span>
+                <div class="monthly-card-profit ${profitClass} mb-4">
+                    <div class="profit-amount">${Utils.formatCurrency(monthData.totalProfit)}</div>
                 </div>
                 
                 <div class="monthly-card-stats mb-3">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <div class="text-center">
-                                <div class="text-muted small">Покупки</div>
-                                <div class="fw-bold text-info">${Utils.formatCurrency(monthData.totalBuyValue)}</div>
+                    <div class="row g-3">
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-label">Покупки</div>
+                                <div class="stat-value text-info">${Utils.formatCurrency(monthData.totalBuyValue)}</div>
                             </div>
                         </div>
-                        <div class="col-6">
-                            <div class="text-center">
-                                <div class="text-muted small">Продажи</div>
-                                <div class="fw-bold text-success">${Utils.formatCurrency(monthData.totalSellValue)}</div>
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-label">Продажи</div>
+                                <div class="stat-value text-success">${Utils.formatCurrency(monthData.totalSellValue)}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="stat-item">
+                                <div class="stat-label">Комиссии</div>
+                                <div class="stat-value text-warning">${Utils.formatCurrency(monthData.totalFees)}</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
-                <div class="monthly-card-details">
-                    <div class="row g-2">
-                        <div class="col-4">
-                            <div class="text-center">
-                                <div class="text-muted small">Сделок</div>
-                                <div class="fw-bold">${monthData.tradeCount}</div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="text-center">
-                                <div class="text-muted small">Пар</div>
-                                <div class="fw-bold">${Object.keys(monthData.pairs).length}</div>
-                            </div>
-                        </div>
-                        <div class="col-4">
-                            <div class="text-center">
-                                <div class="text-muted small">Комиссии</div>
-                                <div class="fw-semibold text-warning">${Utils.formatCurrency(monthData.totalFees)}</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="monthly-card-pairs mt-3">
-                    <h6 class="mb-2">Прибыль по парам:</h6>
-                    <div class="pairs-list">
-                        ${Object.values(monthData.pairs)
-                            .filter(pair => pair.profit !== 0)
-                            .sort((a, b) => Math.abs(b.profit) - Math.abs(a.profit))
-                            .slice(0, 5)
-                            .map(pair => `
-                                <div class="pair-item d-flex justify-content-between align-items-center mb-1">
-                                    <span class="pair-name">${pair.pair}</span>
-                                    <span class="pair-profit ${Utils.getProfitClass(pair.profit)}">
-                                        ${Utils.formatCurrency(pair.profit)}
-                                    </span>
+                <div class="monthly-card-pairs">
+                    <h6 class="mb-3">Прибыль по парам:</h6>
+                    <div class="pairs-grid">
+                        ${topPairs.map(pair => `
+                            <div class="pair-item">
+                                <div class="pair-name">${pair.pair}</div>
+                                <div class="pair-profit ${Utils.getProfitClass(pair.profit)}">
+                                    ${Utils.formatCurrency(pair.profit)}
                                 </div>
-                            `).join('')}
+                            </div>
+                        `).join('')}
                     </div>
+                    ${Object.keys(monthData.pairs).length > 8 ? 
+                        `<div class="more-pairs">+ еще ${Object.keys(monthData.pairs).length - 8} пар</div>` : 
+                        ''
+                    }
                 </div>
             </div>
         `;
@@ -454,27 +439,28 @@ class Dashboard {
                 <div class="pair-card-header">
                     <div class="pair-card-title">
                         <h5 class="mb-0">${pairData.pair}</h5>
+                        <div class="pair-subtitle">${pairData.tradeCount} сделок</div>
                     </div>
                     <div class="pair-card-status ${profitClass}"></div>
                 </div>
                 
-                <div class="pair-card-profit ${profitClass} mb-3">
-                    <span class="fs-3 fw-bold">${Utils.formatCurrency(pairData.netProfit)}</span>
+                <div class="pair-card-profit ${profitClass} mb-4">
+                    <div class="profit-amount">${Utils.formatCurrency(pairData.netProfit)}</div>
                     <div class="profit-percentage">${pairData.profitPercentage.toFixed(2)}%</div>
                 </div>
                 
                 <div class="pair-card-stats mb-3">
-                    <div class="row g-2">
+                    <div class="row g-3">
                         <div class="col-6">
-                            <div class="text-center">
-                                <div class="text-muted small">Покупки</div>
-                                <div class="fw-bold text-info">${Utils.formatCurrency(pairData.totalBuyValue)}</div>
+                            <div class="stat-item">
+                                <div class="stat-label">Покупки</div>
+                                <div class="stat-value text-info">${Utils.formatCurrency(pairData.totalBuyValue)}</div>
                             </div>
                         </div>
                         <div class="col-6">
-                            <div class="text-center">
-                                <div class="text-muted small">Продажи</div>
-                                <div class="fw-bold text-success">${Utils.formatCurrency(pairData.totalSellValue)}</div>
+                            <div class="stat-item">
+                                <div class="stat-label">Продажи</div>
+                                <div class="stat-value text-success">${Utils.formatCurrency(pairData.totalSellValue)}</div>
                             </div>
                         </div>
                     </div>
@@ -483,40 +469,30 @@ class Dashboard {
                 <div class="pair-card-details">
                     <div class="row g-2">
                         <div class="col-4">
-                            <div class="text-center">
-                                <div class="text-muted small">Сделок</div>
-                                <div class="fw-bold">${pairData.tradeCount}</div>
+                            <div class="detail-item">
+                                <div class="detail-label">Покупок</div>
+                                <div class="detail-value">${pairData.buyCount}</div>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="text-center">
-                                <div class="text-muted small">Покупок</div>
-                                <div class="fw-bold text-info">${pairData.buyCount}</div>
+                            <div class="detail-item">
+                                <div class="detail-label">Продаж</div>
+                                <div class="detail-value">${pairData.sellCount}</div>
                             </div>
                         </div>
                         <div class="col-4">
-                            <div class="text-center">
-                                <div class="text-muted small">Продаж</div>
-                                <div class="fw-bold text-success">${pairData.sellCount}</div>
+                            <div class="detail-item">
+                                <div class="detail-label">Комиссии</div>
+                                <div class="detail-value text-warning">${Utils.formatCurrency(pairData.totalFees)}</div>
                             </div>
                         </div>
                     </div>
                 </div>
                 
                 <div class="pair-card-position mt-3">
-                    <div class="row g-2">
-                        <div class="col-6">
-                            <div class="text-center">
-                                <div class="text-muted small">Комиссии</div>
-                                <div class="fw-semibold text-warning">${Utils.formatCurrency(pairData.totalFees)}</div>
-                            </div>
-                        </div>
-                        <div class="col-6">
-                            <div class="text-center">
-                                <div class="text-muted small">Позиция</div>
-                                <div class="fw-semibold">${pairData.currentPosition.amount.toFixed(6)}</div>
-                            </div>
-                        </div>
+                    <div class="position-info">
+                        <div class="position-label">Текущая позиция</div>
+                        <div class="position-value">${pairData.currentPosition.amount.toFixed(6)}</div>
                     </div>
                 </div>
             </div>

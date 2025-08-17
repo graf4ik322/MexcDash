@@ -2,55 +2,75 @@
 .monthly-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.5rem;
+    border-radius: 16px;
+    padding: 1.75rem;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .monthly-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
 }
 
 .monthly-card.profit {
-    border-left: 4px solid var(--profit-color);
+    border-left: 5px solid var(--profit-color);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(76, 175, 80, 0.05) 100%);
 }
 
 .monthly-card.loss {
-    border-left: 4px solid var(--loss-color);
+    border-left: 5px solid var(--loss-color);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(244, 67, 54, 0.05) 100%);
 }
 
 .monthly-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
 }
 
 .monthly-card-title h5 {
     color: var(--text-color);
-    font-weight: 600;
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.monthly-subtitle {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 
 .monthly-card-status {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
+    margin-top: 0.25rem;
 }
 
 .monthly-card-status.profit {
     background: var(--profit-color);
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
 }
 
 .monthly-card-status.loss {
     background: var(--loss-color);
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.4);
 }
 
 .monthly-card-profit {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.monthly-card-profit .profit-amount {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.2;
 }
 
 .monthly-card-profit.profit {
@@ -61,14 +81,6 @@
     color: var(--loss-color);
 }
 
-.monthly-card-stats {
-    margin-bottom: 1.5rem;
-}
-
-.monthly-card-details {
-    margin-bottom: 1rem;
-}
-
 .monthly-card-pairs {
     border-top: 1px solid var(--border-color);
     padding-top: 1rem;
@@ -77,31 +89,32 @@
 .monthly-card-pairs h6 {
     color: var(--text-color);
     font-weight: 600;
-    margin-bottom: 0.75rem;
+    margin-bottom: 1rem;
 }
 
-.pairs-list {
-    max-height: 150px;
-    overflow-y: auto;
+.pairs-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 0.75rem;
+    margin-bottom: 1rem;
 }
 
 .pair-item {
-    padding: 0.25rem 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.pair-item:last-child {
-    border-bottom: none;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.5rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    font-size: 0.875rem;
 }
 
 .pair-name {
-    font-size: 0.875rem;
     color: var(--text-color);
     font-weight: 500;
 }
 
 .pair-profit {
-    font-size: 0.875rem;
     font-weight: 600;
 }
 
@@ -113,60 +126,93 @@
     color: var(--loss-color);
 }
 
+.more-pairs {
+    text-align: center;
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-style: italic;
+}
+
 /* Pair Cards */
 .pair-card {
     background: var(--card-bg);
     border: 1px solid var(--border-color);
-    border-radius: 12px;
-    padding: 1.5rem;
+    border-radius: 16px;
+    padding: 1.75rem;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
 .pair-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
 }
 
 .pair-card.profit {
-    border-left: 4px solid var(--profit-color);
+    border-left: 5px solid var(--profit-color);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(76, 175, 80, 0.05) 100%);
 }
 
 .pair-card.loss {
-    border-left: 4px solid var(--loss-color);
+    border-left: 5px solid var(--loss-color);
+    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(244, 67, 54, 0.05) 100%);
 }
 
 .pair-card-header {
     display: flex;
     justify-content: space-between;
-    align-items: center;
-    margin-bottom: 1rem;
+    align-items: flex-start;
+    margin-bottom: 1.5rem;
 }
 
 .pair-card-title h5 {
     color: var(--text-color);
-    font-weight: 600;
-    font-size: 1.1rem;
+    font-weight: 700;
+    font-size: 1.25rem;
+    margin-bottom: 0.25rem;
+}
+
+.pair-subtitle {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+    font-weight: 500;
 }
 
 .pair-card-status {
-    width: 8px;
-    height: 8px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
+    margin-top: 0.25rem;
 }
 
 .pair-card-status.profit {
     background: var(--profit-color);
+    box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
 }
 
 .pair-card-status.loss {
     background: var(--loss-color);
+    box-shadow: 0 0 8px rgba(244, 67, 54, 0.4);
 }
 
 .pair-card-profit {
     text-align: center;
-    margin-bottom: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.profit-amount {
+    font-size: 2rem;
+    font-weight: 800;
+    line-height: 1.2;
+    margin-bottom: 0.5rem;
+}
+
+.profit-percentage {
+    font-size: 1rem;
+    font-weight: 600;
+    opacity: 0.8;
 }
 
 .pair-card-profit.profit {
@@ -177,21 +223,72 @@
     color: var(--loss-color);
 }
 
-.profit-percentage {
-    font-size: 0.875rem;
-    opacity: 0.8;
-    margin-top: 0.25rem;
-}
-
 .pair-card-stats {
     margin-bottom: 1.5rem;
 }
 
+.stat-item {
+    text-align: center;
+    padding: 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.stat-label {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    font-size: 1.125rem;
+    font-weight: 700;
+}
+
 .pair-card-details {
-    margin-bottom: 1rem;
+    margin-bottom: 1.5rem;
+}
+
+.detail-item {
+    text-align: center;
+    padding: 0.5rem;
+}
+
+.detail-label {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.detail-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
 }
 
 .pair-card-position {
     border-top: 1px solid var(--border-color);
     padding-top: 1rem;
+}
+
+.position-info {
+    text-align: center;
+}
+
+.position-label {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    font-weight: 600;
+    margin-bottom: 0.25rem;
+}
+
+.position-value {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-color);
+    font-family: 'Courier New', monospace;
 }
