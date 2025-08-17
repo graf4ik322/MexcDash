@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>XLSX Analyzer</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <h1>XLSX File Analyzer</h1>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <div id="output"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        
+                        // Get raw data
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        const output = document.getElementById('output');
+                        output.innerHTML = `
+                            <h2>File Analysis</h2>
+                            <p><strong>Sheet Name:</strong> ${sheetName}</p>
+                            <p><strong>Total Rows:</strong> ${jsonData.length}</p>
+                            
+                            <h3>Headers (Row 1):</h3>
+                            <pre>${JSON.stringify(jsonData[0], null, 2)}</pre>
+                            
+                            <h3>First 5 Data Rows:</h3>
+                            <pre>${JSON.stringify(jsonData.slice(1, 6), null, 2)}</pre>
+                            
+                            <h3>Sample Row Analysis:</h3>
+                            <pre>${JSON.stringify(jsonData[1].map((cell, i) => ({
+                                column: i,
+                                header: jsonData[0][i],
+                                value: cell,
+                                type: typeof cell
+                            })), null, 2)}</pre>
+                        `;
+                    } catch (error) {
+                        document.getElementById('output').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+    </script>
+</body>
+</html>

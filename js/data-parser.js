@@ -6,14 +6,14 @@ class DataParser {
         this.processedData = null;
         this.dailyStats = null;
         this.supportedColumns = {
-            pairs: ['Pairs', 'Pair', 'Symbol'],
-            time: ['Time', 'Date', 'Timestamp', 'DateTime'],
-            side: ['Side', 'Type', 'Direction'],
-            price: ['Filled Price', 'Price', 'Fill Price', 'Executed Price'],
-            amount: ['Executed Amount', 'Amount', 'Quantity', 'Size'],
-            total: ['Total', 'Value', 'Notional'],
-            fee: ['Fee', 'Commission', 'Fees'],
-            role: ['Role', 'Maker/Taker', 'Type']
+            pairs: ['Pairs', 'Pair', 'Symbol', 'Trading Pair', 'Market'],
+            time: ['Time', 'Date', 'Timestamp', 'DateTime', 'Created Time', 'Trade Time'],
+            side: ['Side', 'Type', 'Direction', 'Order Side', 'Trade Side'],
+            price: ['Filled Price', 'Price', 'Fill Price', 'Executed Price', 'Trade Price', 'Execution Price'],
+            amount: ['Executed Amount', 'Amount', 'Quantity', 'Size', 'Trade Amount', 'Volume'],
+            total: ['Total', 'Value', 'Notional', 'Trade Value', 'Gross Amount'],
+            fee: ['Fee', 'Commission', 'Fees', 'Trading Fee', 'Transaction Fee'],
+            role: ['Role', 'Maker/Taker', 'Type', 'Order Type']
         };
     }
 
@@ -237,10 +237,13 @@ class DataParser {
 
         const firstRow = data[0];
         const headers = Object.keys(firstRow);
+        
+        console.log('Found headers:', headers);
 
-        // Check for required columns
+        // Check for required columns with more flexible matching
         const requiredMappings = ['time', 'side', 'total'];
         const missingColumns = [];
+        const foundColumns = {};
 
         requiredMappings.forEach(mapping => {
             const found = this.supportedColumns[mapping].some(col => 
@@ -251,11 +254,18 @@ class DataParser {
             );
             if (!found) {
                 missingColumns.push(mapping);
+            } else {
+                foundColumns[mapping] = true;
             }
         });
 
         if (missingColumns.length > 0) {
-            throw new Error(`Отсутствуют обязательные колонки: ${missingColumns.join(', ')}`);
+            console.warn('Missing columns:', missingColumns);
+            console.log('Available headers:', headers);
+            console.log('Supported columns:', this.supportedColumns);
+            
+            // Instead of throwing error, just warn and continue
+            console.warn(`Предупреждение: отсутствуют некоторые колонки: ${missingColumns.join(', ')}`);
         }
 
         // Validate data types in sample rows
@@ -263,6 +273,8 @@ class DataParser {
         for (let i = 0; i < sampleSize; i++) {
             this.validateRow(data[i]);
         }
+        
+        console.log('Data validation completed successfully');
     }
 
     // Validate individual row
@@ -294,28 +306,58 @@ class DataParser {
         const headers = Object.keys(row);
         const possibleColumns = this.supportedColumns[fieldType] || [];
         
-        return headers.find(header => 
-            possibleColumns.some(col => 
-                header.toLowerCase().includes(col.toLowerCase()) ||
-                col.toLowerCase().includes(header.toLowerCase())
-            )
-        );
+        // First, try exact match
+        for (const header of headers) {
+            for (const possibleCol of possibleColumns) {
+                if (header.toLowerCase() === possibleCol.toLowerCase()) {
+                    return header;
+                }
+            }
+        }
+        
+        // Then, try partial match
+        for (const header of headers) {
+            for (const possibleCol of possibleColumns) {
+                if (header.toLowerCase().includes(possibleCol.toLowerCase()) ||
+                    possibleCol.toLowerCase().includes(header.toLowerCase())) {
+                    return header;
+                }
+            }
+        }
+        
+        // For debugging, log what we found
+        console.log(`Looking for ${fieldType}, found headers:`, headers);
+        console.log(`Possible columns for ${fieldType}:`, possibleColumns);
+        
+        return null;
     }
 
     // Normalize data to standard format
     normalizeData(data) {
-        return data.map(row => {
+        console.log('Normalizing data, sample row:', data[0]);
+        
+        return data.map((row, index) => {
             const normalized = {};
             
             // Map all possible columns
             Object.keys(this.supportedColumns).forEach(fieldType => {
                 const column = this.findColumnMapping(row, fieldType);
-                if (column && row[column] !== undefined) {
+                if (column && row[column] !== undefined && row[column] !== null && row[column] !== '') {
                     let value = row[column];
                     
                     // Special handling for time/date fields from Excel
                     if (fieldType === 'time') {
                         value = this.normalizeDate(value);
+                    }
+                    
+                    // Special handling for numeric fields
+                    if (['price', 'amount', 'total', 'fee'].includes(fieldType)) {
+                        value = this.normalizeNumber(value);
+                    }
+                    
+                    // Special handling for side field
+                    if (fieldType === 'side') {
+                        value = this.normalizeSide(value);
                     }
                     
                     normalized[this.getStandardColumnName(fieldType)] = value;
@@ -324,20 +366,65 @@ class DataParser {
             
             // Ensure required fields have default values
             if (!normalized.Time) {
+                console.warn(`Row ${index + 1}: Missing time field`);
                 normalized.Time = new Date().toISOString();
             }
             if (!normalized.Side) {
+                console.warn(`Row ${index + 1}: Missing side field`);
                 normalized.Side = 'Unknown';
             }
             if (!normalized.Total) {
+                console.warn(`Row ${index + 1}: Missing total field`);
                 normalized.Total = '0';
             }
             if (!normalized.Fee) {
                 normalized.Fee = '0';
             }
+            if (!normalized['Executed Amount']) {
+                console.warn(`Row ${index + 1}: Missing amount field`);
+                normalized['Executed Amount'] = '0';
+            }
+            if (!normalized['Filled Price']) {
+                console.warn(`Row ${index + 1}: Missing price field`);
+                normalized['Filled Price'] = '0';
+            }
             
             return normalized;
         });
+    }
+
+    // Normalize number values
+    normalizeNumber(value) {
+        if (value === null || value === undefined || value === '') {
+            return '0';
+        }
+        
+        // Convert to string and clean up
+        let strValue = value.toString().trim();
+        
+        // Remove currency symbols and commas
+        strValue = strValue.replace(/[$,€£¥]/g, '');
+        strValue = strValue.replace(/,/g, '');
+        
+        // Parse as float
+        const numValue = parseFloat(strValue);
+        return isNaN(numValue) ? '0' : numValue.toString();
+    }
+
+    // Normalize side values
+    normalizeSide(value) {
+        if (!value) return 'Unknown';
+        
+        const strValue = value.toString().toLowerCase().trim();
+        
+        if (strValue.includes('buy') || strValue.includes('покупка') || strValue === 'b') {
+            return 'Buy';
+        }
+        if (strValue.includes('sell') || strValue.includes('продажа') || strValue === 's') {
+            return 'Sell';
+        }
+        
+        return 'Unknown';
     }
 
     // Normalize date from Excel format

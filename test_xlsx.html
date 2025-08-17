@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>XLSX Test</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/data-parser.js"></script>
+</head>
+<body>
+    <h1>XLSX Test</h1>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <div id="output"></div>
+
+    <script>
+        const dataParser = new DataParser();
+        
+        document.getElementById('fileInput').addEventListener('change', async function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                try {
+                    const output = document.getElementById('output');
+                    output.innerHTML = '<p>Обработка файла...</p>';
+                    
+                    const result = await dataParser.parseFile(file);
+                    
+                    output.innerHTML = `
+                        <h2>Результат обработки</h2>
+                        <p><strong>Всего строк:</strong> ${result.processed.length}</p>
+                        <p><strong>Дней торговли:</strong> ${Object.keys(result.daily).length}</p>
+                        
+                        <h3>Примеры обработанных данных:</h3>
+                        <pre>${JSON.stringify(result.processed.slice(0, 3), null, 2)}</pre>
+                        
+                        <h3>Статистика по дням:</h3>
+                        <pre>${JSON.stringify(Object.values(result.daily).slice(0, 3), null, 2)}</pre>
+                    `;
+                } catch (error) {
+                    document.getElementById('output').innerHTML = `<p style="color: red;">Ошибка: ${error.message}</p>`;
+                    console.error('Error:', error);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
