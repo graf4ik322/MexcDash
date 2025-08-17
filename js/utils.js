@@ -303,6 +303,9 @@ class Utils {
                 current.cost = newCost;
                 current.avgPrice = newCost / newAmount;
                 
+                console.log(`${pair} BUY: ${amount} @ ${price} = ${total}`);
+                console.log(`  Position: ${current.amount} @ ${current.avgPrice.toFixed(6)} = ${current.cost.toFixed(2)}`);
+                
             } else if (side === 'Sell') {
                 pairData[pair].totalSellAmount += amount;
                 pairData[pair].totalSellValue += total;
@@ -324,9 +327,13 @@ class Utils {
                         current.amount = 0;
                         current.cost = 0;
                         current.avgPrice = 0;
+                        console.log(`  Position fully closed`);
                     } else {
                         current.cost = current.amount * current.avgPrice;
+                        console.log(`  New position: ${current.amount} @ ${current.avgPrice.toFixed(6)} = ${current.cost.toFixed(2)}`);
                     }
+                } else {
+                    console.log(`${pair} SELL: ${amount} @ ${price} = ${total} (no position to close)`);
                 }
             }
         });
@@ -335,10 +342,10 @@ class Utils {
         Object.keys(pairData).forEach(pairKey => {
             const pair = pairData[pairKey];
             
-            // Calculate net profit (realized + unrealized)
+            // Calculate net profit (only realized profit)
             pair.netProfit = pair.realizedProfit;
             
-            // Calculate profit percentage
+            // Calculate profit percentage based on total buy value
             if (pair.totalBuyValue > 0) {
                 pair.profitPercentage = (pair.netProfit / pair.totalBuyValue) * 100;
             } else {
@@ -350,12 +357,13 @@ class Utils {
             pair.buyCount = pair.trades.filter(t => t.side === 'Buy').length;
             pair.sellCount = pair.trades.filter(t => t.side === 'Sell').length;
             
-            console.log(`${pair.pair}:`, {
+            console.log(`${pair.pair} FINAL:`, {
                 buyValue: pair.totalBuyValue.toFixed(2),
                 sellValue: pair.totalSellValue.toFixed(2),
                 realizedProfit: pair.realizedProfit.toFixed(2),
                 fees: pair.totalFees.toFixed(2),
-                currentPosition: pair.currentPosition.amount.toFixed(6)
+                currentPosition: pair.currentPosition.amount.toFixed(6),
+                profitPercentage: pair.profitPercentage.toFixed(2) + '%'
             });
         });
         
@@ -367,14 +375,10 @@ class Utils {
     static calculateMonthlyStats(trades) {
         console.log('Calculating monthly stats for', trades.length, 'trades');
         
-        // Group trades by month and pair
-        const monthlyData = {};
+        // Group trades by month
+        const monthlyTrades = {};
         
         trades.forEach(trade => {
-            const pair = trade.Pairs || 'UNKNOWN';
-            const total = parseFloat(trade.Total) || 0;
-            const fee = parseFloat(trade.Fee) || 0;
-            const side = trade.Side;
             const time = trade.Time;
             
             if (!time) {
@@ -392,68 +396,73 @@ class Utils {
             const monthKey = date.format('YYYY-MM');
             const monthName = date.format('MMMM YYYY');
             
-            if (!monthlyData[monthKey]) {
-                monthlyData[monthKey] = {
+            if (!monthlyTrades[monthKey]) {
+                monthlyTrades[monthKey] = {
                     monthKey: monthKey,
                     monthName: monthName,
-                    pairs: {},
-                    totalBuyValue: 0,
-                    totalSellValue: 0,
-                    totalFees: 0,
-                    totalProfit: 0,
-                    tradeCount: 0
+                    trades: []
                 };
             }
             
-            if (!monthlyData[monthKey].pairs[pair]) {
-                monthlyData[monthKey].pairs[pair] = {
-                    pair: pair,
-                    buyValue: 0,
-                    sellValue: 0,
-                    fees: 0,
-                    profit: 0,
-                    buyCount: 0,
-                    sellCount: 0
-                };
-            }
-            
-            // Update monthly totals
-            monthlyData[monthKey].tradeCount++;
-            monthlyData[monthKey].totalFees += fee;
-            
-            // Update pair totals
-            monthlyData[monthKey].pairs[pair].fees += fee;
-            
-            if (side === 'Buy') {
-                monthlyData[monthKey].totalBuyValue += total;
-                monthlyData[monthKey].pairs[pair].buyValue += total;
-                monthlyData[monthKey].pairs[pair].buyCount++;
-            } else if (side === 'Sell') {
-                monthlyData[monthKey].totalSellValue += total;
-                monthlyData[monthKey].pairs[pair].sellValue += total;
-                monthlyData[monthKey].pairs[pair].sellCount++;
-            }
+            monthlyTrades[monthKey].trades.push(trade);
         });
         
-        // Calculate profits for each month and pair
-        Object.keys(monthlyData).forEach(monthKey => {
-            const month = monthlyData[monthKey];
+        // Calculate profit for each month using the same logic as pair profit
+        const monthlyData = {};
+        
+        Object.keys(monthlyTrades).forEach(monthKey => {
+            const monthTrades = monthlyTrades[monthKey].trades;
+            const monthName = monthlyTrades[monthKey].monthName;
             
-            // Calculate total profit for the month
-            month.totalProfit = month.totalSellValue - month.totalBuyValue - month.totalFees;
+            console.log(`\n=== Processing month: ${monthName} ===`);
+            console.log(`Trades in month: ${monthTrades.length}`);
             
-            // Calculate profit for each pair
-            Object.keys(month.pairs).forEach(pairKey => {
-                const pair = month.pairs[pairKey];
-                pair.profit = pair.sellValue - pair.buyValue - pair.fees;
+            // Use the same pair profit calculation logic for this month's trades
+            const pairData = this.calculatePairProfit(monthTrades);
+            
+            // Aggregate data for the month
+            let totalBuyValue = 0;
+            let totalSellValue = 0;
+            let totalFees = 0;
+            let totalProfit = 0;
+            let tradeCount = 0;
+            const pairs = {};
+            
+            Object.values(pairData).forEach(pair => {
+                totalBuyValue += pair.totalBuyValue;
+                totalSellValue += pair.totalSellValue;
+                totalFees += pair.totalFees;
+                totalProfit += pair.realizedProfit;
+                tradeCount += pair.tradeCount;
+                
+                pairs[pair.pair] = {
+                    pair: pair.pair,
+                    buyValue: pair.totalBuyValue,
+                    sellValue: pair.totalSellValue,
+                    fees: pair.totalFees,
+                    profit: pair.realizedProfit,
+                    buyCount: pair.buyCount,
+                    sellCount: pair.sellCount
+                };
             });
             
-            console.log(`Month ${month.monthName}:`, {
-                buyValue: month.totalBuyValue.toFixed(2),
-                sellValue: month.totalSellValue.toFixed(2),
-                fees: month.totalFees.toFixed(2),
-                profit: month.totalProfit.toFixed(2),
-                pairs: Object.keys(month.pairs).length
+            monthlyData[monthKey] = {
+                monthKey: monthKey,
+                monthName: monthName,
+                pairs: pairs,
+                totalBuyValue: totalBuyValue,
+                totalSellValue: totalSellValue,
+                totalFees: totalFees,
+                totalProfit: totalProfit,
+                tradeCount: tradeCount
+            };
+            
+            console.log(`Month ${monthName} summary:`, {
+                buyValue: totalBuyValue.toFixed(2),
+                sellValue: totalSellValue.toFixed(2),
+                fees: totalFees.toFixed(2),
+                profit: totalProfit.toFixed(2),
+                pairs: Object.keys(pairs).length
             });
         });
         

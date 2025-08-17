@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Тест расчета прибыли</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/ru.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .profit { color: green; font-weight: bold; }
+        .loss { color: red; font-weight: bold; }
+        .debug { background: #f5f5f5; padding: 10px; margin: 10px 0; font-family: monospace; font-size: 12px; }
+    </style>
+</head>
+<body>
+    <h1>Тест расчета прибыли</h1>
+    
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <button onclick="testCalculation()">Тестировать расчет</button>
+    
+    <div id="results"></div>
+    
+    <script src="js/utils.js"></script>
+    <script src="js/data-parser.js"></script>
+    
+    <script>
+        async function testCalculation() {
+            const fileInput = document.getElementById('fileInput');
+            const resultsDiv = document.getElementById('results');
+            
+            if (!fileInput.files[0]) {
+                alert('Выберите файл');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            resultsDiv.innerHTML = '<div class="debug">Обработка файла...</div>';
+            
+            try {
+                const dataParser = new DataParser();
+                const result = await dataParser.parseFile(file);
+                
+                console.log('Full result:', result);
+                
+                let html = '<h2>Результаты расчета</h2>';
+                
+                // Показать общую статистику по парам
+                html += '<h3>Прибыль по парам:</h3>';
+                if (result.pairs) {
+                    const sortedPairs = Object.values(result.pairs)
+                        .sort((a, b) => b.netProfit - a.netProfit);
+                    
+                    sortedPairs.forEach(pair => {
+                        const profitClass = pair.netProfit >= 0 ? 'profit' : 'loss';
+                        html += `
+                            <div class="result">
+                                <h4>${pair.pair}</h4>
+                                <p>Чистая прибыль: <span class="${profitClass}">${pair.netProfit.toFixed(2)} USDT</span></p>
+                                <p>Процент прибыли: <span class="${profitClass}">${pair.profitPercentage.toFixed(2)}%</span></p>
+                                <p>Покупки: ${pair.totalBuyValue.toFixed(2)} USDT</p>
+                                <p>Продажи: ${pair.totalSellValue.toFixed(2)} USDT</p>
+                                <p>Комиссии: ${pair.totalFees.toFixed(2)} USDT</p>
+                                <p>Сделок: ${pair.tradeCount} (${pair.buyCount} покупок, ${pair.sellCount} продаж)</p>
+                                <p>Текущая позиция: ${pair.currentPosition.amount.toFixed(6)}</p>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Показать месячную статистику
+                html += '<h3>Месячная статистика:</h3>';
+                if (result.monthly) {
+                    const sortedMonths = Object.keys(result.monthly).sort().reverse();
+                    
+                    sortedMonths.forEach(monthKey => {
+                        const month = result.monthly[monthKey];
+                        const profitClass = month.totalProfit >= 0 ? 'profit' : 'loss';
+                        html += `
+                            <div class="result">
+                                <h4>${month.monthName}</h4>
+                                <p>Прибыль: <span class="${profitClass}">${month.totalProfit.toFixed(2)} USDT</span></p>
+                                <p>Покупки: ${month.totalBuyValue.toFixed(2)} USDT</p>
+                                <p>Продажи: ${month.totalSellValue.toFixed(2)} USDT</p>
+                                <p>Комиссии: ${month.totalFees.toFixed(2)} USDT</p>
+                                <p>Сделок: ${month.tradeCount}</p>
+                                <p>Пар: ${Object.keys(month.pairs).length}</p>
+                            </div>
+                        `;
+                    });
+                }
+                
+                // Показать общую сумму прибыли
+                let totalProfit = 0;
+                if (result.pairs) {
+                    Object.values(result.pairs).forEach(pair => {
+                        totalProfit += pair.netProfit;
+                    });
+                }
+                
+                const totalProfitClass = totalProfit >= 0 ? 'profit' : 'loss';
+                html += `
+                    <h3>Общая прибыль:</h3>
+                    <div class="result">
+                        <p>Суммарная прибыль: <span class="${totalProfitClass}">${totalProfit.toFixed(2)} USDT</span></p>
+                    </div>
+                `;
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `<div class="debug">Ошибка: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
