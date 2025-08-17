@@ -1,0 +1,415 @@
+/* Daily Trading Cards */
+.daily-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+    transition: var(--transition);
+    min-height: 180px;
+}
+
+.daily-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.4);
+    border-color: var(--color-accent);
+}
+
+.daily-card.profit {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(0, 200, 81, 0.1) 100%);
+    border-left: 4px solid var(--color-profit);
+}
+
+.daily-card.loss {
+    background: linear-gradient(135deg, var(--bg-secondary) 0%, rgba(255, 53, 71, 0.1) 100%);
+    border-left: 4px solid var(--color-loss);
+}
+
+.daily-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.daily-card-date {
+    font-size: 0.875rem;
+    color: var(--text-secondary);
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.daily-card-status {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.daily-card-status.profit {
+    background-color: var(--color-profit);
+    box-shadow: 0 0 10px rgba(0, 200, 81, 0.5);
+}
+
+.daily-card-status.loss {
+    background-color: var(--color-loss);
+    box-shadow: 0 0 10px rgba(255, 53, 71, 0.5);
+}
+
+.daily-card-profit {
+    font-size: 1.5rem;
+    font-weight: 700;
+    margin-bottom: 0.5rem;
+    display: flex;
+    align-items: center;
+}
+
+.daily-card-profit .currency {
+    font-size: 0.875rem;
+    margin-left: 0.25rem;
+    opacity: 0.8;
+}
+
+.daily-card-percent {
+    font-size: 0.875rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    margin-bottom: 1rem;
+}
+
+.daily-card-percent i {
+    margin-right: 0.25rem;
+}
+
+.daily-card-stats {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-top: 1rem;
+}
+
+.daily-card-stat {
+    text-align: center;
+}
+
+.daily-card-stat-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.25rem;
+}
+
+.daily-card-stat-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.daily-card-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: rgba(255, 255, 255, 0.1);
+    overflow: hidden;
+}
+
+.daily-card-progress-bar {
+    height: 100%;
+    transition: width 0.8s ease-out;
+    background: linear-gradient(90deg, var(--color-accent), var(--color-profit));
+}
+
+.daily-card-progress-bar.loss {
+    background: linear-gradient(90deg, var(--color-accent), var(--color-loss));
+}
+
+/* Detailed Stats Tooltip */
+.daily-card-tooltip {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: var(--bg-primary);
+    border: 1px solid var(--border-color);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-top: 0.5rem;
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-10px);
+    transition: var(--transition);
+    z-index: 100;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+}
+
+.daily-card:hover .daily-card-tooltip {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.tooltip-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.tooltip-item {
+    text-align: center;
+}
+
+.tooltip-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    margin-bottom: 0.25rem;
+}
+
+.tooltip-value {
+    font-size: 0.875rem;
+    font-weight: 600;
+}
+
+/* Summary Cards */
+.summary-metric {
+    padding: 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    margin-bottom: 1rem;
+    transition: var(--transition);
+}
+
+.summary-metric:hover {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateX(4px);
+}
+
+.summary-metric-label {
+    font-size: 0.75rem;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.summary-metric-value {
+    font-size: 1.25rem;
+    font-weight: 700;
+}
+
+.summary-metric-change {
+    font-size: 0.75rem;
+    margin-top: 0.25rem;
+    display: flex;
+    align-items: center;
+}
+
+.summary-metric-change i {
+    margin-right: 0.25rem;
+}
+
+/* Period Navigation */
+.period-nav {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+}
+
+.period-btn {
+    padding: 0.5rem 1rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition);
+    font-size: 0.875rem;
+}
+
+.period-btn:hover,
+.period-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+}
+
+/* Charts */
+.chart-container {
+    position: relative;
+    background: var(--bg-secondary);
+    border-radius: 12px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.chart-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 1rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.chart-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.chart-controls {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.chart-btn {
+    padding: 0.25rem 0.5rem;
+    background: transparent;
+    border: 1px solid var(--border-color);
+    color: var(--text-secondary);
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75rem;
+    transition: var(--transition);
+}
+
+.chart-btn:hover,
+.chart-btn.active {
+    background: var(--color-accent);
+    border-color: var(--color-accent);
+    color: white;
+}
+
+/* Loading States */
+.loading-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border-color);
+    border-radius: 12px;
+    padding: 1.5rem;
+    min-height: 180px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+}
+
+.loading-skeleton {
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0.1) 25%, rgba(255, 255, 255, 0.2) 50%, rgba(255, 255, 255, 0.1) 75%);
+    background-size: 200% 100%;
+    animation: loading 1.5s infinite;
+    border-radius: 4px;
+}
+
+@keyframes loading {
+    0% {
+        background-position: 200% 0;
+    }
+    100% {
+        background-position: -200% 0;
+    }
+}
+
+.skeleton-line {
+    height: 1rem;
+    margin-bottom: 0.5rem;
+}
+
+.skeleton-line.short {
+    width: 60%;
+}
+
+.skeleton-line.medium {
+    width: 80%;
+}
+
+.skeleton-line.long {
+    width: 100%;
+}
+
+/* Error States */
+.error-card {
+    background: rgba(255, 53, 71, 0.1);
+    border: 1px solid var(--color-loss);
+    border-radius: 12px;
+    padding: 2rem;
+    text-align: center;
+    color: var(--color-loss);
+}
+
+.error-icon {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+}
+
+.error-title {
+    font-size: 1.25rem;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.error-message {
+    color: var(--text-secondary);
+    margin-bottom: 1rem;
+}
+
+.error-action {
+    background: var(--color-loss);
+    color: white;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.error-action:hover {
+    background: rgba(255, 53, 71, 0.8);
+}
+
+/* Responsive Design */
+@media (max-width: 992px) {
+    .daily-card {
+        min-height: 160px;
+    }
+    
+    .daily-card-stats {
+        grid-template-columns: 1fr;
+        gap: 0.5rem;
+    }
+    
+    .chart-container {
+        padding: 1rem;
+    }
+    
+    .period-nav {
+        justify-content: center;
+    }
+}
+
+@media (max-width: 576px) {
+    .daily-card {
+        min-height: 140px;
+        padding: 1rem;
+    }
+    
+    .daily-card-profit {
+        font-size: 1.25rem;
+    }
+    
+    .tooltip-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-header {
+        flex-direction: column;
+        gap: 1rem;
+        align-items: stretch;
+    }
+}
