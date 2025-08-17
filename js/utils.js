@@ -187,17 +187,43 @@ class Utils {
         return data;
     }
 
-    // Calculate win rate from trades
+    // Calculate win rate from trades (more accurate calculation)
     static calculateWinRate(trades) {
         if (!trades || trades.length === 0) return 0;
         
-        const profitableTrades = trades.filter(trade => {
-            const total = parseFloat(trade.Total) || 0;
-            const fee = parseFloat(trade.Fee) || 0;
-            return (total - fee) > 0;
+        // Group trades by pairs to calculate proper win rate
+        const pairTrades = {};
+        trades.forEach(trade => {
+            const pair = trade.Pairs || 'UNKNOWN';
+            if (!pairTrades[pair]) {
+                pairTrades[pair] = { buys: [], sells: [] };
+            }
+            if (trade.Side === 'Buy') {
+                pairTrades[pair].buys.push(trade);
+            } else if (trade.Side === 'Sell') {
+                pairTrades[pair].sells.push(trade);
+            }
         });
         
-        return (profitableTrades.length / trades.length) * 100;
+        let profitableOperations = 0;
+        let totalOperations = 0;
+        
+        // Calculate win rate based on completed buy-sell cycles
+        Object.values(pairTrades).forEach(pair => {
+            const completedCycles = Math.min(pair.buys.length, pair.sells.length);
+            totalOperations += completedCycles;
+            
+            // Simple approach: count sells as profitable if they have positive net value
+            pair.sells.forEach(sell => {
+                const total = parseFloat(sell.Total) || 0;
+                const fee = parseFloat(sell.Fee) || 0;
+                if ((total - fee) > 0) {
+                    profitableOperations++;
+                }
+            });
+        });
+        
+        return totalOperations > 0 ? (profitableOperations / trades.length) * 100 : 0;
     }
 
     // Group trades by date
@@ -223,30 +249,63 @@ class Utils {
         Object.keys(groupedTrades).forEach(date => {
             const dayTrades = groupedTrades[date];
             
-            let totalProfit = 0;
+            // Group trades by trading pairs to calculate P&L correctly
+            const pairStats = {};
             let totalVolume = 0;
             let totalFees = 0;
             let buyCount = 0;
             let sellCount = 0;
             
             dayTrades.forEach(trade => {
+                const pair = trade.Pairs || 'UNKNOWN';
                 const total = parseFloat(trade.Total) || 0;
                 const fee = parseFloat(trade.Fee) || 0;
                 const amount = parseFloat(trade['Executed Amount']) || 0;
+                const price = parseFloat(trade['Filled Price']) || 0;
                 
                 totalVolume += total;
                 totalFees += fee;
                 
+                if (!pairStats[pair]) {
+                    pairStats[pair] = {
+                        buyAmount: 0,
+                        sellAmount: 0,
+                        buyValue: 0,
+                        sellValue: 0,
+                        fees: 0
+                    };
+                }
+                
                 if (trade.Side === 'Buy') {
                     buyCount++;
-                    totalProfit -= (total + fee); // Cost for buying
+                    pairStats[pair].buyAmount += amount;
+                    pairStats[pair].buyValue += total;
                 } else if (trade.Side === 'Sell') {
                     sellCount++;
-                    totalProfit += (total - fee); // Revenue from selling
+                    pairStats[pair].sellAmount += amount;
+                    pairStats[pair].sellValue += total;
                 }
+                
+                pairStats[pair].fees += fee;
             });
             
-            const winRate = this.calculateWinRate(dayTrades);
+            // Calculate total P&L based on completed trades
+            let totalProfit = 0;
+            Object.values(pairStats).forEach(pairStat => {
+                // Simple P&L calculation: revenue from sells minus cost of buys minus fees
+                const pairPnL = pairStat.sellValue - pairStat.buyValue - pairStat.fees;
+                totalProfit += pairPnL;
+            });
+            
+            // Calculate win rate based on individual trades profitability
+            const profitableTrades = dayTrades.filter(trade => {
+                const total = parseFloat(trade.Total) || 0;
+                const fee = parseFloat(trade.Fee) || 0;
+                // Consider a trade profitable if it's a sell with positive net value
+                return trade.Side === 'Sell' && (total - fee) > 0;
+            });
+            
+            const winRate = dayTrades.length > 0 ? (profitableTrades.length / dayTrades.length) * 100 : 0;
             
             dailyStats[date] = {
                 date: date,
@@ -257,7 +316,8 @@ class Utils {
                 buyCount: buyCount,
                 sellCount: sellCount,
                 totalTrades: dayTrades.length,
-                trades: dayTrades
+                trades: dayTrades,
+                pairStats: pairStats
             };
         });
         

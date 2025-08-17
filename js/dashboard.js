@@ -271,54 +271,78 @@ class Dashboard {
             <div class="daily-card ${profitClass} fade-in">
                 <div class="daily-card-header">
                     <div class="daily-card-date">
-                        <div>${dateInfo.day}</div>
-                        <div>${dateInfo.date}</div>
+                        <div class="text-muted">${dateInfo.day}</div>
+                        <div class="text-secondary fw-semibold">${dateInfo.date}</div>
                     </div>
                     <div class="daily-card-status ${profitClass}"></div>
                 </div>
                 
-                <div class="daily-card-profit ${profitClass}">
-                    ${Utils.formatCurrency(dayData.profit)}
+                <div class="daily-card-profit ${profitClass} mb-2">
+                    <span class="fs-4 fw-bold">${Utils.formatCurrency(dayData.profit)}</span>
                 </div>
                 
-                <div class="daily-card-percent ${profitClass}">
-                    <i class="bi ${profitIcon}"></i>
-                    ${Utils.formatPercent(profitPercent)}
+                <div class="daily-card-percent ${profitClass} mb-3">
+                    <i class="bi ${profitIcon} me-1"></i>
+                    <span class="fw-semibold">${Utils.formatPercent(profitPercent)}</span>
+                    <small class="text-muted ms-2">от объема</small>
                 </div>
                 
-                <div class="daily-card-stats">
-                    <div class="daily-card-stat">
-                        <div class="daily-card-stat-label">Win Rate</div>
-                        <div class="daily-card-stat-value">${dayData.winRate.toFixed(1)}%</div>
+                <div class="row g-2 mb-3">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="text-muted small">Сделки</div>
+                            <div class="fw-bold text-primary">${dayData.totalTrades}</div>
+                        </div>
                     </div>
-                    <div class="daily-card-stat">
-                        <div class="daily-card-stat-label">Сделки</div>
-                        <div class="daily-card-stat-value">${dayData.totalTrades}</div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="text-muted small">Win Rate</div>
+                            <div class="fw-bold ${dayData.winRate >= 50 ? 'text-success' : 'text-danger'}">${dayData.winRate.toFixed(1)}%</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="row g-2">
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="text-muted small">Объем</div>
+                            <div class="fw-semibold small">${Utils.formatCurrency(dayData.volume)}</div>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <div class="text-center">
+                            <div class="text-muted small">Комиссии</div>
+                            <div class="fw-semibold small text-warning">${Utils.formatCurrency(dayData.fees)}</div>
+                        </div>
                     </div>
                 </div>
                 
                 <div class="daily-card-progress">
                     <div class="daily-card-progress-bar ${profitClass}" 
-                         style="width: ${Math.abs(profitPercent)}%"></div>
+                         style="width: ${Math.min(Math.abs(profitPercent), 100)}%"></div>
                 </div>
                 
                 <div class="daily-card-tooltip">
-                    <div class="tooltip-grid">
-                        <div class="tooltip-item">
-                            <div class="tooltip-label">Объем</div>
-                            <div class="tooltip-value">${Utils.formatCurrency(dayData.volume)}</div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="tooltip-label">Покупки</div>
+                                <div class="tooltip-value text-info">${dayData.buyCount}</div>
+                            </div>
                         </div>
-                        <div class="tooltip-item">
-                            <div class="tooltip-label">Комиссии</div>
-                            <div class="tooltip-value">${Utils.formatCurrency(dayData.fees)}</div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="tooltip-label">Продажи</div>
+                                <div class="tooltip-value text-warning">${dayData.sellCount}</div>
+                            </div>
                         </div>
-                        <div class="tooltip-item">
-                            <div class="tooltip-label">Long/Short</div>
-                            <div class="tooltip-value">${dayData.buyCount}/${dayData.sellCount}</div>
-                        </div>
-                        <div class="tooltip-item">
-                            <div class="tooltip-label">Роль</div>
-                            <div class="tooltip-value">Maker/Taker</div>
+                        <div class="col-12 mt-2">
+                            <div class="text-center">
+                                <div class="tooltip-label">Чистая прибыль</div>
+                                <div class="tooltip-value ${profitClass} fw-bold">
+                                    ${Utils.formatCurrency(dayData.profit - dayData.fees)}
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
