@@ -202,36 +202,17 @@ class DataParser {
                         raw: false  // Convert numbers to strings for consistency
                     });
                     
-                    if (jsonData.length < 3) {
+                    if (jsonData.length < 2) {
                         throw new Error('Excel файл должен содержать заголовки и данные');
                     }
                     
-                    console.log('Raw Excel data structure:', jsonData.slice(0, 5));
+                    console.log('Raw Excel data structure:', jsonData.slice(0, 3));
                     
-                    // Find the row with actual headers (skip template rows)
-                    let headerRowIndex = 0;
-                    for (let i = 0; i < Math.min(10, jsonData.length); i++) {
-                        const row = jsonData[i];
-                        if (row && row.length > 0) {
-                            // Check if this row contains actual header names
-                            const hasRealHeaders = row.some(cell => 
-                                cell && typeof cell === 'string' && 
-                                (cell.includes('Pairs') || cell.includes('Time') || cell.includes('Side') || 
-                                 cell.includes('Price') || cell.includes('Amount') || cell.includes('Total'))
-                            );
-                            
-                            if (hasRealHeaders) {
-                                headerRowIndex = i;
-                                break;
-                            }
-                        }
-                    }
+                    // Headers are in the first row, data starts from second row
+                    const headers = jsonData[0];
+                    const dataRows = jsonData.slice(1);
                     
-                    console.log(`Found headers at row ${headerRowIndex + 1}:`, jsonData[headerRowIndex]);
-                    
-                    // Extract headers and data
-                    const headers = jsonData[headerRowIndex];
-                    const dataRows = jsonData.slice(headerRowIndex + 1);
+                    console.log('Headers found:', headers);
                     
                     const processedData = dataRows.map((row, index) => {
                         const obj = {};
