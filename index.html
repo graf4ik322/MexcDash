@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Trading Dashboard</title>
+    
+    <!-- CSS Libraries -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css">
+    
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="css/main.css">
+    <link rel="stylesheet" href="css/components.css">
+</head>
+<body class="bg-dark text-white">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay d-none">
+        <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Загрузка...</span>
+        </div>
+        <p class="mt-3">Обработка данных...</p>
+    </div>
+
+    <!-- Toast Container -->
+    <div class="toast-container position-fixed top-0 end-0 p-3">
+        <div id="errorToast" class="toast" role="alert">
+            <div class="toast-header bg-danger text-white">
+                <i class="bi bi-exclamation-triangle me-2"></i>
+                <strong class="me-auto">Ошибка</strong>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="toast"></button>
+            </div>
+            <div class="toast-body bg-dark text-white">
+                <!-- Error message will be inserted here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Container -->
+    <div class="container-fluid">
+        <!-- Header -->
+        <header class="py-4 border-bottom border-secondary">
+            <div class="row align-items-center">
+                <div class="col">
+                    <h1 class="h3 mb-0">
+                        <i class="bi bi-graph-up text-success me-2"></i>
+                        Trading Dashboard
+                    </h1>
+                </div>
+                <div class="col-auto">
+                    <div class="input-group">
+                        <input type="file" 
+                               class="form-control bg-dark text-white border-secondary" 
+                               id="fileInput" 
+                               accept=".xlsx,.csv"
+                               style="max-width: 300px;">
+                        <button class="btn btn-outline-primary" type="button" id="loadDataBtn">
+                            <i class="bi bi-upload"></i> Загрузить
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- Welcome Screen -->
+        <div id="welcomeScreen" class="text-center py-5">
+            <div class="row justify-content-center">
+                <div class="col-md-6">
+                    <i class="bi bi-file-earmark-spreadsheet display-1 text-muted mb-4"></i>
+                    <h2>Добро пожаловать в Trading Dashboard</h2>
+                    <p class="text-muted mb-4">
+                        Загрузите файл с торговой историей (CSV или XLSX) для начала анализа
+                    </p>
+                    <div class="alert alert-info">
+                        <h6>Ожидаемая структура файла:</h6>
+                        <small>Pairs, Time, Side, Filled Price, Executed Amount, Total, Fee, Role</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div id="dashboard" class="d-none">
+            <div class="row">
+                <!-- Main Content -->
+                <div class="col-lg-9">
+                    <!-- Period Controls -->
+                    <div class="row mb-4">
+                        <div class="col">
+                            <div class="btn-group" role="group">
+                                <button type="button" class="btn btn-outline-primary active" data-period="week">Неделя</button>
+                                <button type="button" class="btn btn-outline-primary" data-period="month">Месяц</button>
+                                <button type="button" class="btn btn-outline-primary" data-period="custom">Период</button>
+                            </div>
+                        </div>
+                        <div class="col-auto">
+                            <div class="input-group" id="customPeriod" style="display: none;">
+                                <input type="date" class="form-control bg-dark text-white border-secondary" id="startDate">
+                                <input type="date" class="form-control bg-dark text-white border-secondary" id="endDate">
+                                <button class="btn btn-outline-primary" type="button" id="applyPeriod">
+                                    <i class="bi bi-check"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Daily Cards Container -->
+                    <div id="dailyCards" class="row g-3">
+                        <!-- Daily cards will be inserted here -->
+                    </div>
+
+                    <!-- Charts Section -->
+                    <div class="row mt-5">
+                        <div class="col-12">
+                            <h4 class="mb-3">Аналитика</h4>
+                        </div>
+                        <div class="col-lg-8">
+                            <div class="card bg-secondary">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Кумулятивная прибыль</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="profitChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-lg-4">
+                            <div class="card bg-secondary">
+                                <div class="card-header">
+                                    <h6 class="mb-0">Win Rate</h6>
+                                </div>
+                                <div class="card-body">
+                                    <canvas id="winRateChart" height="300"></canvas>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Sidebar -->
+                <div class="col-lg-3">
+                    <div class="sticky-top" style="top: 1rem;">
+                        <!-- Summary Panel -->
+                        <div class="card bg-secondary mb-4">
+                            <div class="card-header">
+                                <h6 class="mb-0">Сводка</h6>
+                            </div>
+                            <div class="card-body">
+                                <div id="summaryContent">
+                                    <div class="mb-3">
+                                        <small class="text-muted">Период</small>
+                                        <div id="currentPeriod" class="fw-bold">-</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <small class="text-muted">Общая прибыль</small>
+                                        <div id="totalProfit" class="fw-bold fs-4">-</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <small class="text-muted">Торговых дней</small>
+                                        <div id="tradingDays" class="fw-bold">-</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <small class="text-muted">Общий Win Rate</small>
+                                        <div id="overallWinRate" class="fw-bold">-</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <small class="text-muted">Всего сделок</small>
+                                        <div id="totalTrades" class="fw-bold">-</div>
+                                    </div>
+                                    <div class="mb-3">
+                                        <small class="text-muted">Общие комиссии</small>
+                                        <div id="totalFees" class="fw-bold">-</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Filters -->
+                        <div class="card bg-secondary">
+                            <div class="card-header">
+                                <h6 class="mb-0">Фильтры</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="mb-3">
+                                    <label class="form-label small">Тип позиций</label>
+                                    <select class="form-select bg-dark text-white border-secondary" id="positionFilter">
+                                        <option value="all">Все</option>
+                                        <option value="buy">Только покупки</option>
+                                        <option value="sell">Только продажи</option>
+                                    </select>
+                                </div>
+                                <div class="mb-3">
+                                    <label class="form-label small">Сортировка</label>
+                                    <select class="form-select bg-dark text-white border-secondary" id="sortBy">
+                                        <option value="date">По дате</option>
+                                        <option value="profit">По прибыли</option>
+                                        <option value="volume">По объему</option>
+                                    </select>
+                                </div>
+                                <button class="btn btn-outline-primary btn-sm w-100" id="exportBtn">
+                                    <i class="bi bi-download"></i> Экспорт CSV
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript Libraries -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/ru.min.js"></script>
+
+    <!-- Custom JavaScript -->
+    <script src="js/utils.js"></script>
+    <script src="js/data-parser.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,26 @@
+title: Trading Dashboard
+description: Веб-приложение для анализа торговой статистики
+baseurl: ""
+url: ""
+
+# Exclude files from processing
+exclude:
+  - trading-dashboard/
+  - TechnicalSpec.md
+  - LICENSE
+  - .gitignore
+  - .github/
+
+# Include files
+include:
+  - index.html
+  - css/
+  - js/
+  - assets/
+
+# Jekyll settings
+markdown: kramdown
+highlighter: rouge
+plugins:
+  - jekyll-feed
+  - jekyll-sitemap
