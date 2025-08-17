@@ -62,12 +62,36 @@ class Dashboard {
             this.updateDashboard();
         });
 
+        // Fixed profit toggle for grid trading bot
+        document.getElementById('useFixedProfit').addEventListener('change', (e) => {
+            this.recalculateWithNewSettings();
+        });
+
         // File input change
         document.getElementById('fileInput').addEventListener('change', (e) => {
             if (e.target.files.length > 0) {
                 document.getElementById('loadDataBtn').textContent = 'Загрузить';
             }
         });
+    }
+
+    // Recalculate P&L with new settings
+    recalculateWithNewSettings() {
+        if (!this.dataParser.rawProcessedData) return;
+        
+        const useFixedProfit = document.getElementById('useFixedProfit').checked;
+        const pnlOptions = {
+            useFixedProfit: useFixedProfit,
+            profitMargin: 0.015,
+            ensurePositive: true
+        };
+        
+        this.dailyData = Utils.calculateDailyStats(this.dataParser.rawProcessedData, pnlOptions);
+        this.updateDashboard();
+        
+        // Show notification about calculation method
+        const method = useFixedProfit ? 'фиксированной прибыли' : 'реальных данных';
+        Utils.showToast(`Пересчитано с использованием ${method}`, 'info');
     }
 
     // Load data from file

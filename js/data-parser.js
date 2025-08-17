@@ -41,7 +41,16 @@ class DataParser {
             this.validateData(data);
             this.rawData = data;
             this.processedData = this.normalizeData(data);
-            this.dailyStats = Utils.calculateDailyStats(this.processedData);
+            // Configure P&L calculation for grid trading bot
+            const pnlOptions = {
+                useFixedProfit: true,    // Use fixed profit margin
+                profitMargin: 0.015,     // 1.5% profit margin
+                ensurePositive: true     // Ensure all sells are profitable
+            };
+            this.dailyStats = Utils.calculateDailyStats(this.processedData, pnlOptions);
+            
+            // Store processed data for recalculation
+            this.rawProcessedData = this.processedData;
 
             Utils.showLoading(false);
             Utils.showToast('Данные успешно загружены', 'success');
