@@ -12,7 +12,20 @@ class DataParser {
             price: ['Filled Price', 'Price', 'Fill Price', 'Executed Price', 'Trade Price', 'Execution Price', 'Order Price', 'Market Price', 'Last Price'],
             amount: ['Executed Amount', 'Amount', 'Quantity', 'Size', 'Trade Amount', 'Volume', 'Executed Quantity', 'Fill Amount', 'Order Amount'],
             total: ['Total', 'Value', 'Notional', 'Trade Value', 'Gross Amount', 'Net Amount', 'Order Value', 'Fill Value', 'Trade Total'],
-            fee: ['Fee', 'Commission', 'Fees', 'Trading Fee', 'Transaction Fee', 'Order Fee', 'Fill Fee', 'Commission Fee']
+            fee: ['Fee', 'Commission', 'Fees', 'Trading Fee', 'Transaction Fee', 'Order Fee', 'Fill Fee', 'Commission Fee'],
+            role: ['Role', 'Maker/Taker', 'Type', 'Order Type']
+        };
+        
+        // Direct mapping for known column names from the file
+        this.directMapping = {
+            'Pairs': 'Pairs',
+            'Time': 'Time', 
+            'Side': 'Side',
+            'Filled Price': 'Filled Price',
+            'Executed Amount': 'Executed Amount',
+            'Total': 'Total',
+            'Fee': 'Fee',
+            'Role': 'Role'
         };
     }
 
@@ -189,29 +202,56 @@ class DataParser {
                         raw: false  // Convert numbers to strings for consistency
                     });
                     
-                    if (jsonData.length < 2) {
+                    if (jsonData.length < 3) {
                         throw new Error('Excel файл должен содержать заголовки и данные');
                     }
                     
-                    // Convert array format to object format
-                    const headers = jsonData[0];
-                    const dataRows = jsonData.slice(1);
+                    console.log('Raw Excel data structure:', jsonData.slice(0, 5));
+                    
+                    // Find the row with actual headers (skip template rows)
+                    let headerRowIndex = 0;
+                    for (let i = 0; i < Math.min(10, jsonData.length); i++) {
+                        const row = jsonData[i];
+                        if (row && row.length > 0) {
+                            // Check if this row contains actual header names
+                            const hasRealHeaders = row.some(cell => 
+                                cell && typeof cell === 'string' && 
+                                (cell.includes('Pairs') || cell.includes('Time') || cell.includes('Side') || 
+                                 cell.includes('Price') || cell.includes('Amount') || cell.includes('Total'))
+                            );
+                            
+                            if (hasRealHeaders) {
+                                headerRowIndex = i;
+                                break;
+                            }
+                        }
+                    }
+                    
+                    console.log(`Found headers at row ${headerRowIndex + 1}:`, jsonData[headerRowIndex]);
+                    
+                    // Extract headers and data
+                    const headers = jsonData[headerRowIndex];
+                    const dataRows = jsonData.slice(headerRowIndex + 1);
                     
                     const processedData = dataRows.map((row, index) => {
                         const obj = {};
                         headers.forEach((header, colIndex) => {
-                            if (header) { // Skip empty headers
-                                obj[header] = row[colIndex] || '';
+                            if (header && header.trim()) { // Skip empty headers
+                                obj[header.trim()] = row[colIndex] || '';
                             }
                         });
                         return obj;
-                    }).filter(row => Object.keys(row).length > 0); // Remove empty rows
+                    }).filter(row => {
+                        // Filter out completely empty rows
+                        return Object.values(row).some(value => value !== '' && value !== null && value !== undefined);
+                    });
                     
                     if (processedData.length === 0) {
                         throw new Error('Excel файл не содержит данных после обработки');
                     }
                     
                     console.log(`Excel файл успешно обработан: ${processedData.length} строк`);
+                    console.log('Sample processed row:', processedData[0]);
                     resolve(processedData);
                     
                 } catch (error) {
@@ -316,7 +356,18 @@ class DataParser {
         const headers = Object.keys(row);
         const possibleColumns = this.supportedColumns[fieldType] || [];
         
-        // First, try exact match (case insensitive)
+        // First, try direct mapping for known column names
+        for (const header of headers) {
+            if (this.directMapping[header]) {
+                const mappedField = this.directMapping[header];
+                if (this.supportedColumns[fieldType].includes(mappedField)) {
+                    console.log(`Found direct mapping for ${fieldType}: ${header} -> ${mappedField}`);
+                    return header;
+                }
+            }
+        }
+        
+        // Then, try exact match (case insensitive)
         for (const header of headers) {
             for (const possibleCol of possibleColumns) {
                 if (header.toLowerCase() === possibleCol.toLowerCase()) {
