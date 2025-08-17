@@ -241,10 +241,14 @@ class Utils {
         return grouped;
     }
 
-    // Calculate daily statistics from trades
+    // Calculate daily statistics from trades with proper P&L tracking for grid trading
+    // This function tracks positions across days and calculates only realized profits
     static calculateDailyStats(trades) {
         const dailyStats = {};
         const groupedTrades = this.groupTradesByDate(trades);
+        
+        // Track positions across all days
+        const globalPositions = {};
         
         Object.keys(groupedTrades).forEach(date => {
             const dayTrades = groupedTrades[date];
@@ -255,6 +259,9 @@ class Utils {
             let totalFees = 0;
             let buyCount = 0;
             let sellCount = 0;
+            
+            // Track positions for each pair
+            const positions = {};
             
             dayTrades.forEach(trade => {
                 const pair = trade.Pairs || 'UNKNOWN';
@@ -272,7 +279,24 @@ class Utils {
                         sellAmount: 0,
                         buyValue: 0,
                         sellValue: 0,
-                        fees: 0
+                        fees: 0,
+                        realizedPnL: 0
+                    };
+                }
+                
+                if (!positions[pair]) {
+                    positions[pair] = {
+                        totalAmount: 0,
+                        totalCost: 0,
+                        averagePrice: 0
+                    };
+                }
+                
+                if (!globalPositions[pair]) {
+                    globalPositions[pair] = {
+                        totalAmount: 0,
+                        totalCost: 0,
+                        averagePrice: 0
                     };
                 }
                 
@@ -280,50 +304,82 @@ class Utils {
                     buyCount++;
                     pairStats[pair].buyAmount += amount;
                     pairStats[pair].buyValue += total;
+                    
+                    // Update both local and global positions
+                    globalPositions[pair].totalAmount += amount;
+                    globalPositions[pair].totalCost += total;
+                    globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
+                    
+                    positions[pair].totalAmount += amount;
+                    positions[pair].totalCost += total;
+                    positions[pair].averagePrice = positions[pair].totalCost / positions[pair].totalAmount;
+                    
                 } else if (trade.Side === 'Sell') {
                     sellCount++;
                     pairStats[pair].sellAmount += amount;
                     pairStats[pair].sellValue += total;
+                    
+                    // Calculate realized P&L for this sell using global position
+                    if (globalPositions[pair].totalAmount > 0) {
+                        const sellValue = total;
+                        const sellAmount = amount;
+                        const avgBuyPrice = globalPositions[pair].averagePrice;
+                        const buyValue = sellAmount * avgBuyPrice;
+                        
+                        // Realized P&L = Sell Value - Buy Value - Fees
+                        const realizedPnL = sellValue - buyValue - fee;
+                        pairStats[pair].realizedPnL += realizedPnL;
+                        
+                        // Update global position (reduce by sold amount)
+                        globalPositions[pair].totalAmount -= sellAmount;
+                        if (globalPositions[pair].totalAmount <= 0) {
+                            // Position fully closed
+                            globalPositions[pair].totalAmount = 0;
+                            globalPositions[pair].totalCost = 0;
+                            globalPositions[pair].averagePrice = 0;
+                        } else {
+                            // Partial position closed, recalculate average price
+                            globalPositions[pair].totalCost = globalPositions[pair].totalAmount * avgBuyPrice;
+                        }
+                        
+                        // Update local position for display
+                        positions[pair].totalAmount -= sellAmount;
+                        if (positions[pair].totalAmount <= 0) {
+                            positions[pair].totalAmount = 0;
+                            positions[pair].totalCost = 0;
+                            positions[pair].averagePrice = 0;
+                        } else {
+                            positions[pair].totalCost = positions[pair].totalAmount * avgBuyPrice;
+                        }
+                    }
                 }
                 
                 pairStats[pair].fees += fee;
             });
             
-            // For GRID TRADING calculation (NO STOP-LOSS):
-            // The key insight: if there are no stop-losses, negative days occur because
-            // more buying (accumulation) than selling on that day
-            // But the actual profit should be calculated as net difference
-            
-            let totalBuyValue = 0;
-            let totalSellValue = 0;
-            
-            // Calculate total buy and sell values
+            // Calculate total realized P&L for the day
+            let totalRealizedPnL = 0;
             Object.values(pairStats).forEach(pairStat => {
-                totalBuyValue += pairStat.buyValue;
-                totalSellValue += pairStat.sellValue;
+                totalRealizedPnL += pairStat.realizedPnL;
             });
             
-            // Grid trading profit calculation
-            // Net result for the day (this can be negative if more accumulation than closing)
-            let totalProfit = totalSellValue - totalBuyValue - totalFees;
+            // For grid trading, we only count realized profits
+            // Unrealized gains/losses from open positions are not counted
+            const totalProfit = totalRealizedPnL;
             
-            // However, if you want to show only "realized" profit from sells:
-            // Uncomment the line below and comment the line above
-            // totalProfit = totalSellValue > 0 ? totalSellValue * 0.02 : 0; // Assume 2% profit margin on sells
-            
-            // For grid trading, win rate is based on sell operations
-            // Each sell should be profitable since grid bots sell at target profit %
+            // Calculate win rate based on profitable sell operations
             const sellTrades = dayTrades.filter(trade => trade.Side === 'Sell');
-            const profitableSells = sellTrades.filter(trade => {
-                const total = parseFloat(trade.Total) || 0;
-                const fee = parseFloat(trade.Fee) || 0;
-                // In grid trading, sells should always be profitable
-                // We check if the net value is positive after fees
-                return (total - fee) > 0;
+            let profitableSells = 0;
+            
+            sellTrades.forEach(trade => {
+                const pair = trade.Pairs || 'UNKNOWN';
+                const pairStat = pairStats[pair];
+                if (pairStat && pairStat.realizedPnL > 0) {
+                    profitableSells++;
+                }
             });
             
-            // Win rate = percentage of successful sell operations
-            const winRate = sellTrades.length > 0 ? (profitableSells.length / sellTrades.length) * 100 : 100;
+            const winRate = sellTrades.length > 0 ? (profitableSells / sellTrades.length) * 100 : 100;
             
             dailyStats[date] = {
                 date: date,
@@ -335,7 +391,9 @@ class Utils {
                 sellCount: sellCount,
                 totalTrades: dayTrades.length,
                 trades: dayTrades,
-                pairStats: pairStats
+                pairStats: pairStats,
+                positions: positions, // Keep track of open positions for this day
+                globalPositions: { ...globalPositions } // Copy of global positions for reference
             };
         });
         

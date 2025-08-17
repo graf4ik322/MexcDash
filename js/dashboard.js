@@ -267,6 +267,43 @@ class Dashboard {
         });
     }
 
+    // Get count of open positions for a day
+    getOpenPositionsCount(dayData) {
+        if (!dayData.globalPositions) return 0;
+        
+        let openPositionsCount = 0;
+        Object.values(dayData.globalPositions).forEach(position => {
+            if (position.totalAmount > 0) {
+                openPositionsCount++;
+            }
+        });
+        return openPositionsCount;
+    }
+
+    // Get summary of open positions across all data
+    getOpenPositionsSummary() {
+        if (!this.filteredData) return { totalOpen: 0, totalValue: 0 };
+        
+        const dates = Object.keys(this.filteredData).sort();
+        if (dates.length === 0) return { totalOpen: 0, totalValue: 0 };
+        
+        // Get the latest day's global positions
+        const latestDay = this.filteredData[dates[dates.length - 1]];
+        if (!latestDay.globalPositions) return { totalOpen: 0, totalValue: 0 };
+        
+        let totalOpen = 0;
+        let totalValue = 0;
+        
+        Object.values(latestDay.globalPositions).forEach(position => {
+            if (position.totalAmount > 0) {
+                totalOpen++;
+                totalValue += position.totalCost;
+            }
+        });
+        
+                return { totalOpen, totalValue };
+    }
+
     // Get sorted dates based on current sort setting
     getSortedDates() {
         const dates = Object.keys(this.filteredData);
@@ -378,6 +415,20 @@ class Dashboard {
                         <div class="col-6">
                             <div class="text-center">
                                 <div class="tooltip-label">Валовая прибыль</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="tooltip-label">Открытые позиции</div>
+                                <div class="tooltip-value text-warning">${this.getOpenPositionsCount(dayData)}</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="text-center">
+                                <div class="tooltip-label">Реализованная прибыль</div>
+                                <div class="tooltip-value ${Utils.getProfitClass(dayData.profit)}">${Utils.formatCurrency(dayData.profit)}</div>
+                            </div>
+                        </div>
                                 <div class="tooltip-value ${profitClass}">${Utils.formatCurrency(dayData.profit)}</div>
                             </div>
                         </div>
@@ -434,6 +485,20 @@ class Dashboard {
         document.getElementById('overallWinRate').textContent = `${overallWinRate.toFixed(1)}%`;
         document.getElementById('totalTrades').textContent = totalTrades.toLocaleString();
         document.getElementById('totalFees').textContent = Utils.formatCurrency(totalFees);
+        
+        // Calculate and display open positions info
+        const openPositionsInfo = this.getOpenPositionsSummary();
+        if (openPositionsInfo.totalOpen > 0) {
+            document.getElementById('openPositionsInfo').innerHTML = `
+                <div class="alert alert-warning">
+                    <i class="bi bi-exclamation-triangle me-2"></i>
+                    <strong>Открытые позиции:</strong> ${openPositionsInfo.totalOpen} пар на сумму ${Utils.formatCurrency(openPositionsInfo.totalValue)}
+                </div>
+            `;
+            document.getElementById('openPositionsInfo').classList.remove('d-none');
+        } else {
+            document.getElementById('openPositionsInfo').classList.add('d-none');
+        }
     }
 
     // Update charts
