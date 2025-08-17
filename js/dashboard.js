@@ -284,6 +284,31 @@ class Dashboard {
         return openPositionsCount;
     }
 
+    // Get position details for a day
+    getPositionDetails(dayData) {
+        if (!dayData.pairStats) return 'Нет данных';
+        
+        const details = [];
+        Object.keys(dayData.pairStats).forEach(pair => {
+            const pairStat = dayData.pairStats[pair];
+            if (pairStat.buyAmount > 0 || pairStat.sellAmount > 0) {
+                let detail = `${pair}: `;
+                if (pairStat.buyAmount > 0) {
+                    detail += `Buy ${pairStat.buyAmount.toFixed(4)}`;
+                }
+                if (pairStat.sellAmount > 0) {
+                    detail += `${pairStat.buyAmount > 0 ? ', ' : ''}Sell ${pairStat.sellAmount.toFixed(4)}`;
+                    if (pairStat.realizedPnL !== 0) {
+                        detail += ` (${Utils.formatCurrency(pairStat.realizedPnL)})`;
+                    }
+                }
+                details.push(detail);
+            }
+        });
+        
+        return details.length > 0 ? details.join('; ') : 'Нет операций';
+    }
+
     // Get summary of open positions across all data
     getOpenPositionsSummary() {
         if (!this.filteredData) return { totalOpen: 0, totalValue: 0 };
@@ -431,6 +456,12 @@ class Dashboard {
                             <div class="text-center">
                                 <div class="tooltip-label">Реализованная прибыль</div>
                                 <div class="tooltip-value ${Utils.getProfitClass(dayData.profit)}">${Utils.formatCurrency(dayData.profit)}</div>
+                            </div>
+                        </div>
+                        <div class="col-12">
+                            <div class="text-center">
+                                <div class="tooltip-label">Детали позиций</div>
+                                <div class="tooltip-value small">${this.getPositionDetails(dayData)}</div>
                             </div>
                         </div>
                                 <div class="tooltip-value ${profitClass}">${Utils.formatCurrency(dayData.profit)}</div>

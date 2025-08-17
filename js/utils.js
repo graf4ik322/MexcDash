@@ -247,7 +247,7 @@ class Utils {
         const dailyStats = {};
         const groupedTrades = this.groupTradesByDate(trades);
         
-        // Track positions across all days
+        // Track positions across all days with detailed logging
         const globalPositions = {};
         
         Object.keys(groupedTrades).forEach(date => {
@@ -263,7 +263,10 @@ class Utils {
             // Track positions for each pair
             const positions = {};
             
-            dayTrades.forEach(trade => {
+            console.log(`\n=== Processing date: ${date} ===`);
+            console.log(`Total trades for this day: ${dayTrades.length}`);
+            
+            dayTrades.forEach((trade, tradeIndex) => {
                 const pair = trade.Pairs || 'UNKNOWN';
                 const total = parseFloat(trade.Total) || 0;
                 const fee = parseFloat(trade.Fee) || 0;
@@ -296,9 +299,12 @@ class Utils {
                     globalPositions[pair] = {
                         totalAmount: 0,
                         totalCost: 0,
-                        averagePrice: 0
+                        averagePrice: 0,
+                        trades: [] // Track all trades for this pair
                     };
                 }
+                
+                console.log(`\nTrade ${tradeIndex + 1}: ${trade.Side} ${amount} ${pair} @ ${price} = ${total}`);
                 
                 if (trade.Side === 'Buy') {
                     buyCount++;
@@ -306,9 +312,27 @@ class Utils {
                     pairStats[pair].buyValue += total;
                     
                     // Update global position
+                    const oldAmount = globalPositions[pair].totalAmount;
+                    const oldCost = globalPositions[pair].totalCost;
+                    
                     globalPositions[pair].totalAmount += amount;
                     globalPositions[pair].totalCost += total;
                     globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
+                    
+                    // Add trade to history
+                    globalPositions[pair].trades.push({
+                        type: 'buy',
+                        amount: amount,
+                        price: price,
+                        total: total,
+                        fee: fee,
+                        date: date
+                    });
+                    
+                    console.log(`  BUY: ${pair}`);
+                    console.log(`    Amount: ${oldAmount} + ${amount} = ${globalPositions[pair].totalAmount}`);
+                    console.log(`    Cost: ${oldCost} + ${total} = ${globalPositions[pair].totalCost}`);
+                    console.log(`    Avg Price: ${globalPositions[pair].averagePrice.toFixed(6)}`);
                     
                     // Update local position
                     positions[pair].totalAmount += amount;
@@ -320,26 +344,54 @@ class Utils {
                     pairStats[pair].sellAmount += amount;
                     pairStats[pair].sellValue += total;
                     
+                    console.log(`  SELL: ${pair}`);
+                    console.log(`    Current position: ${globalPositions[pair].totalAmount} @ ${globalPositions[pair].averagePrice.toFixed(6)}`);
+                    
                     // Calculate profit from this sell
-                    // Use the current average buy price for the sold amount
-                    const avgBuyPrice = globalPositions[pair].averagePrice;
-                    const buyValue = amount * avgBuyPrice;
-                    const realizedPnL = total - buyValue - fee;
-                    
-                    pairStats[pair].realizedPnL += realizedPnL;
-                    
-                    // Update global position
-                    globalPositions[pair].totalAmount -= amount;
-                    globalPositions[pair].totalCost -= (amount * avgBuyPrice);
-                    
-                    if (globalPositions[pair].totalAmount <= 0) {
-                        // Position fully closed
-                        globalPositions[pair].totalAmount = 0;
-                        globalPositions[pair].totalCost = 0;
-                        globalPositions[pair].averagePrice = 0;
+                    if (globalPositions[pair].totalAmount > 0) {
+                        const avgBuyPrice = globalPositions[pair].averagePrice;
+                        const buyValue = amount * avgBuyPrice;
+                        const realizedPnL = total - buyValue - fee;
+                        
+                        pairStats[pair].realizedPnL += realizedPnL;
+                        
+                        console.log(`    Sold: ${amount} @ ${price} = ${total}`);
+                        console.log(`    Buy Value: ${amount} * ${avgBuyPrice.toFixed(6)} = ${buyValue.toFixed(2)}`);
+                        console.log(`    Profit: ${total} - ${buyValue.toFixed(2)} - ${fee} = ${realizedPnL.toFixed(2)}`);
+                        
+                        // Update global position
+                        const oldAmount = globalPositions[pair].totalAmount;
+                        const oldCost = globalPositions[pair].totalCost;
+                        
+                        globalPositions[pair].totalAmount -= amount;
+                        globalPositions[pair].totalCost -= (amount * avgBuyPrice);
+                        
+                        console.log(`    New position: ${globalPositions[pair].totalAmount} @ ${globalPositions[pair].averagePrice.toFixed(6)}`);
+                        
+                        if (globalPositions[pair].totalAmount <= 0) {
+                            // Position fully closed
+                            console.log(`    Position fully closed for ${pair}`);
+                            globalPositions[pair].totalAmount = 0;
+                            globalPositions[pair].totalCost = 0;
+                            globalPositions[pair].averagePrice = 0;
+                        } else {
+                            // Recalculate average price
+                            globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
+                        }
+                        
+                        // Add trade to history
+                        globalPositions[pair].trades.push({
+                            type: 'sell',
+                            amount: amount,
+                            price: price,
+                            total: total,
+                            fee: fee,
+                            date: date,
+                            profit: realizedPnL
+                        });
+                        
                     } else {
-                        // Recalculate average price
-                        globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
+                        console.log(`    WARNING: Selling ${amount} ${pair} but no position exists!`);
                     }
                     
                     // Update local position
@@ -364,6 +416,10 @@ class Utils {
             
             // Only show profit from sells, ignore accumulation losses
             const totalProfit = totalRealizedPnL;
+            
+            console.log(`\nDay Summary: ${date}`);
+            console.log(`  Total Profit: ${totalProfit.toFixed(2)}`);
+            console.log(`  Buy Count: ${buyCount}, Sell Count: ${sellCount}`);
             
             // Calculate win rate based on profitable sells
             const sellTrades = dayTrades.filter(trade => trade.Side === 'Sell');
@@ -393,6 +449,15 @@ class Utils {
                 positions: positions,
                 globalPositions: { ...globalPositions }
             };
+        });
+        
+        // Log final position summary
+        console.log('\n=== Final Position Summary ===');
+        Object.keys(globalPositions).forEach(pair => {
+            const pos = globalPositions[pair];
+            if (pos.totalAmount > 0) {
+                console.log(`${pair}: ${pos.totalAmount} @ ${pos.averagePrice.toFixed(6)} = ${pos.totalCost.toFixed(2)}`);
+            }
         });
         
         return dailyStats;
