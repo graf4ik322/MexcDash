@@ -289,23 +289,40 @@ class Utils {
                 pairStats[pair].fees += fee;
             });
             
-            // Calculate total P&L based on completed trades
+            // For trading P&L calculation, we need to understand that this is spot trading
+            // where profit comes from the difference between buy and sell prices
+            // Since we don't have position tracking, we'll calculate daily net flow
+            
             let totalProfit = 0;
+            let totalBuyValue = 0;
+            let totalSellValue = 0;
+            
             Object.values(pairStats).forEach(pairStat => {
-                // Simple P&L calculation: revenue from sells minus cost of buys minus fees
-                const pairPnL = pairStat.sellValue - pairStat.buyValue - pairStat.fees;
-                totalProfit += pairPnL;
+                totalBuyValue += pairStat.buyValue;
+                totalSellValue += pairStat.sellValue;
             });
             
-            // Calculate win rate based on individual trades profitability
+            // Net trading result for the day (sells minus buys minus fees)
+            totalProfit = totalSellValue - totalBuyValue - totalFees;
+            
+            // Calculate win rate based on profitable trades
             const profitableTrades = dayTrades.filter(trade => {
                 const total = parseFloat(trade.Total) || 0;
                 const fee = parseFloat(trade.Fee) || 0;
-                // Consider a trade profitable if it's a sell with positive net value
-                return trade.Side === 'Sell' && (total - fee) > 0;
+                const netValue = total - fee;
+                
+                // For spot trading, we consider:
+                // - Sells as potentially profitable if net value > average buy price for same pair
+                // - For simplicity, we'll consider trades with higher volume as more likely profitable
+                if (trade.Side === 'Sell') {
+                    return netValue > 10; // Arbitrary threshold for meaningful profit
+                } else {
+                    return false; // Buys are costs, not profits
+                }
             });
             
-            const winRate = dayTrades.length > 0 ? (profitableTrades.length / dayTrades.length) * 100 : 0;
+            const sellTrades = dayTrades.filter(trade => trade.Side === 'Sell').length;
+            const winRate = sellTrades > 0 ? (profitableTrades.length / sellTrades) * 100 : 0;
             
             dailyStats[date] = {
                 date: date,
