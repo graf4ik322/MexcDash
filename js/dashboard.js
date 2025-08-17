@@ -83,10 +83,13 @@ class Dashboard {
             
             this.dailyData = result.daily;
             this.monthlyData = result.monthly;
+            this.pairData = result.pairs;
             console.log('Daily data set:', this.dailyData);
             console.log('Monthly data set:', this.monthlyData);
+            console.log('Pair data set:', this.pairData);
             console.log('Number of days:', Object.keys(this.dailyData).length);
             console.log('Number of months:', Object.keys(this.monthlyData).length);
+            console.log('Number of pairs:', Object.keys(this.pairData).length);
             
             this.updateDashboard();
             this.showDashboard();
@@ -159,6 +162,7 @@ class Dashboard {
         
         this.renderCards();
         this.renderMonthlyCards();
+        this.renderPairCards(); // Added this line
         this.renderSummary();
         this.updateCharts();
         
@@ -324,6 +328,35 @@ class Dashboard {
         });
     }
 
+    // Render pair cards
+    renderPairCards() {
+        const container = document.getElementById('pairCards');
+        if (!container) return;
+        
+        container.innerHTML = '';
+        
+        if (!this.pairData || Object.keys(this.pairData).length === 0) {
+            container.innerHTML = `
+                <div class="col-12">
+                    <div class="alert alert-info">
+                        <i class="bi bi-info-circle me-2"></i>
+                        Нет данных по парам для отображения
+                    </div>
+                </div>
+            `;
+            return;
+        }
+        
+        // Sort pairs by profit (highest first)
+        const sortedPairs = Object.values(this.pairData)
+            .sort((a, b) => b.netProfit - a.netProfit);
+        
+        sortedPairs.forEach(pairData => {
+            const card = this.createPairCard(pairData);
+            container.appendChild(card);
+        });
+    }
+
     // Create monthly card element
     createMonthlyCard(monthData) {
         const col = document.createElement('div');
@@ -400,6 +433,90 @@ class Dashboard {
                                     </span>
                                 </div>
                             `).join('')}
+                    </div>
+                </div>
+            </div>
+        `;
+        
+        return col;
+    }
+
+    // Create pair card element
+    createPairCard(pairData) {
+        const col = document.createElement('div');
+        col.className = 'col-lg-4 col-md-6 col-sm-12';
+        
+        const profitClass = Utils.getProfitClass(pairData.netProfit);
+        const profitIcon = Utils.getProfitIcon(pairData.netProfit);
+        
+        col.innerHTML = `
+            <div class="pair-card ${profitClass} fade-in">
+                <div class="pair-card-header">
+                    <div class="pair-card-title">
+                        <h5 class="mb-0">${pairData.pair}</h5>
+                    </div>
+                    <div class="pair-card-status ${profitClass}"></div>
+                </div>
+                
+                <div class="pair-card-profit ${profitClass} mb-3">
+                    <span class="fs-3 fw-bold">${Utils.formatCurrency(pairData.netProfit)}</span>
+                    <div class="profit-percentage">${pairData.profitPercentage.toFixed(2)}%</div>
+                </div>
+                
+                <div class="pair-card-stats mb-3">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="text-muted small">Покупки</div>
+                                <div class="fw-bold text-info">${Utils.formatCurrency(pairData.totalBuyValue)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="text-muted small">Продажи</div>
+                                <div class="fw-bold text-success">${Utils.formatCurrency(pairData.totalSellValue)}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pair-card-details">
+                    <div class="row g-2">
+                        <div class="col-4">
+                            <div class="text-center">
+                                <div class="text-muted small">Сделок</div>
+                                <div class="fw-bold">${pairData.tradeCount}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center">
+                                <div class="text-muted small">Покупок</div>
+                                <div class="fw-bold text-info">${pairData.buyCount}</div>
+                            </div>
+                        </div>
+                        <div class="col-4">
+                            <div class="text-center">
+                                <div class="text-muted small">Продаж</div>
+                                <div class="fw-bold text-success">${pairData.sellCount}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="pair-card-position mt-3">
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="text-muted small">Комиссии</div>
+                                <div class="fw-semibold text-warning">${Utils.formatCurrency(pairData.totalFees)}</div>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="text-center">
+                                <div class="text-muted small">Позиция</div>
+                                <div class="fw-semibold">${pairData.currentPosition.amount.toFixed(6)}</div>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>

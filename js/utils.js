@@ -241,6 +241,127 @@ class Utils {
         return grouped;
     }
 
+    // Calculate clean profit by trading pairs
+    // New approach: track each pair separately and calculate realized profit
+    static calculatePairProfit(trades) {
+        console.log('Calculating pair profit for', trades.length, 'trades');
+        
+        // Group trades by pair
+        const pairData = {};
+        
+        trades.forEach(trade => {
+            const pair = trade.Pairs || 'UNKNOWN';
+            const total = parseFloat(trade.Total) || 0;
+            const fee = parseFloat(trade.Fee) || 0;
+            const amount = parseFloat(trade['Executed Amount']) || 0;
+            const price = parseFloat(trade['Filled Price']) || 0;
+            const side = trade.Side;
+            const time = trade.Time;
+            
+            if (!pairData[pair]) {
+                pairData[pair] = {
+                    pair: pair,
+                    trades: [],
+                    totalBuyAmount: 0,
+                    totalBuyValue: 0,
+                    totalSellAmount: 0,
+                    totalSellValue: 0,
+                    totalFees: 0,
+                    currentPosition: {
+                        amount: 0,
+                        cost: 0,
+                        avgPrice: 0
+                    },
+                    realizedProfit: 0,
+                    unrealizedProfit: 0
+                };
+            }
+            
+            // Add trade to history
+            pairData[pair].trades.push({
+                time: time,
+                side: side,
+                amount: amount,
+                price: price,
+                total: total,
+                fee: fee
+            });
+            
+            // Update totals
+            pairData[pair].totalFees += fee;
+            
+            if (side === 'Buy') {
+                pairData[pair].totalBuyAmount += amount;
+                pairData[pair].totalBuyValue += total;
+                
+                // Update current position
+                const current = pairData[pair].currentPosition;
+                const newAmount = current.amount + amount;
+                const newCost = current.cost + total;
+                
+                current.amount = newAmount;
+                current.cost = newCost;
+                current.avgPrice = newCost / newAmount;
+                
+            } else if (side === 'Sell') {
+                pairData[pair].totalSellAmount += amount;
+                pairData[pair].totalSellValue += total;
+                
+                // Calculate realized profit from this sell
+                const current = pairData[pair].currentPosition;
+                if (current.amount > 0) {
+                    const buyValue = amount * current.avgPrice;
+                    const realizedProfit = total - buyValue - fee;
+                    pairData[pair].realizedProfit += realizedProfit;
+                    
+                    console.log(`${pair} SELL: ${amount} @ ${price} = ${total}`);
+                    console.log(`  Buy value: ${amount} * ${current.avgPrice.toFixed(6)} = ${buyValue.toFixed(2)}`);
+                    console.log(`  Profit: ${total} - ${buyValue.toFixed(2)} - ${fee} = ${realizedProfit.toFixed(2)}`);
+                    
+                    // Update position
+                    current.amount -= amount;
+                    if (current.amount <= 0) {
+                        current.amount = 0;
+                        current.cost = 0;
+                        current.avgPrice = 0;
+                    } else {
+                        current.cost = current.amount * current.avgPrice;
+                    }
+                }
+            }
+        });
+        
+        // Calculate final statistics
+        Object.keys(pairData).forEach(pairKey => {
+            const pair = pairData[pairKey];
+            
+            // Calculate net profit (realized + unrealized)
+            pair.netProfit = pair.realizedProfit;
+            
+            // Calculate profit percentage
+            if (pair.totalBuyValue > 0) {
+                pair.profitPercentage = (pair.netProfit / pair.totalBuyValue) * 100;
+            } else {
+                pair.profitPercentage = 0;
+            }
+            
+            // Calculate trade count
+            pair.tradeCount = pair.trades.length;
+            pair.buyCount = pair.trades.filter(t => t.side === 'Buy').length;
+            pair.sellCount = pair.trades.filter(t => t.side === 'Sell').length;
+            
+            console.log(`${pair.pair}:`, {
+                buyValue: pair.totalBuyValue.toFixed(2),
+                sellValue: pair.totalSellValue.toFixed(2),
+                realizedProfit: pair.realizedProfit.toFixed(2),
+                fees: pair.totalFees.toFixed(2),
+                currentPosition: pair.currentPosition.amount.toFixed(6)
+            });
+        });
+        
+        return pairData;
+    }
+
     // Calculate monthly P&L statistics from trades
     // New approach: calculate profit by month and by trading pair
     static calculateMonthlyStats(trades) {

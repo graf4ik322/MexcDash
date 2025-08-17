@@ -53,6 +53,9 @@ class DataParser {
             this.validateData(data);
             this.rawData = data;
             this.processedData = this.normalizeData(data);
+            // Calculate pair profit with new approach
+            this.pairStats = Utils.calculatePairProfit(this.processedData);
+            
             // Calculate daily stats with simple P&L tracking
             this.dailyStats = Utils.calculateDailyStats(this.processedData);
             
@@ -68,6 +71,7 @@ class DataParser {
             return {
                 raw: this.rawData,
                 processed: this.processedData,
+                pairs: this.pairStats,
                 daily: this.dailyStats,
                 monthly: this.monthlyStats
             };
@@ -554,6 +558,11 @@ class DataParser {
     // Get monthly statistics
     getMonthlyStats() {
         return this.monthlyStats;
+    }
+
+    // Get pair statistics
+    getPairStats() {
+        return this.pairStats;
     }
 
     // Get data summary
