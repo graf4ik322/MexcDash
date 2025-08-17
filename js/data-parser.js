@@ -164,22 +164,59 @@ class DataParser {
             
             reader.onload = (e) => {
                 try {
+                    Utils.showLoading(true, 'Чтение Excel файла...');
+                    
                     const data = new Uint8Array(e.target.result);
                     const workbook = XLSX.read(data, { type: 'array' });
+                    
+                    if (!workbook.SheetNames || workbook.SheetNames.length === 0) {
+                        throw new Error('Excel файл не содержит листов');
+                    }
                     
                     // Get first sheet
                     const sheetName = workbook.SheetNames[0];
                     const worksheet = workbook.Sheets[sheetName];
                     
-                    // Convert to JSON
-                    const jsonData = XLSX.utils.sheet_to_json(worksheet);
-                    
-                    if (jsonData.length === 0) {
-                        throw new Error('Excel файл не содержит данных');
+                    if (!worksheet) {
+                        throw new Error(`Не удалось прочитать лист: ${sheetName}`);
                     }
                     
-                    resolve(jsonData);
+                    Utils.showLoading(true, 'Преобразование данных...');
+                    
+                    // Convert to JSON with options for better parsing
+                    const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                        header: 1, // Use first row as headers
+                        defval: '', // Default value for empty cells
+                        raw: false  // Convert numbers to strings for consistency
+                    });
+                    
+                    if (jsonData.length < 2) {
+                        throw new Error('Excel файл должен содержать заголовки и данные');
+                    }
+                    
+                    // Convert array format to object format
+                    const headers = jsonData[0];
+                    const dataRows = jsonData.slice(1);
+                    
+                    const processedData = dataRows.map((row, index) => {
+                        const obj = {};
+                        headers.forEach((header, colIndex) => {
+                            if (header) { // Skip empty headers
+                                obj[header] = row[colIndex] || '';
+                            }
+                        });
+                        return obj;
+                    }).filter(row => Object.keys(row).length > 0); // Remove empty rows
+                    
+                    if (processedData.length === 0) {
+                        throw new Error('Excel файл не содержит данных после обработки');
+                    }
+                    
+                    console.log(`Excel файл успешно обработан: ${processedData.length} строк`);
+                    resolve(processedData);
+                    
                 } catch (error) {
+                    console.error('Ошибка при обработке Excel файла:', error);
                     reject(new Error(`Ошибка чтения Excel файла: ${error.message}`));
                 }
             };
@@ -274,7 +311,14 @@ class DataParser {
             Object.keys(this.supportedColumns).forEach(fieldType => {
                 const column = this.findColumnMapping(row, fieldType);
                 if (column && row[column] !== undefined) {
-                    normalized[this.getStandardColumnName(fieldType)] = row[column];
+                    let value = row[column];
+                    
+                    // Special handling for time/date fields from Excel
+                    if (fieldType === 'time') {
+                        value = this.normalizeDate(value);
+                    }
+                    
+                    normalized[this.getStandardColumnName(fieldType)] = value;
                 }
             });
             
@@ -294,6 +338,53 @@ class DataParser {
             
             return normalized;
         });
+    }
+
+    // Normalize date from Excel format
+    normalizeDate(value) {
+        if (!value) return '';
+        
+        // If it's already a string, try to parse it
+        if (typeof value === 'string') {
+            // Try different date formats
+            const dateFormats = [
+                'YYYY-MM-DD HH:mm:ss',
+                'DD.MM.YYYY HH:mm:ss',
+                'MM/DD/YYYY HH:mm:ss',
+                'YYYY-MM-DD',
+                'DD.MM.YYYY',
+                'MM/DD/YYYY'
+            ];
+            
+            for (const format of dateFormats) {
+                const parsed = moment(value, format, true);
+                if (parsed.isValid()) {
+                    return parsed.toISOString();
+                }
+            }
+            
+            // Try to parse as ISO string
+            const isoParsed = moment(value);
+            if (isoParsed.isValid()) {
+                return isoParsed.toISOString();
+            }
+        }
+        
+        // If it's a number (Excel date serial number)
+        if (typeof value === 'number') {
+            // Excel dates are days since 1900-01-01
+            const excelEpoch = new Date(1900, 0, 1);
+            const date = new Date(excelEpoch.getTime() + (value - 2) * 24 * 60 * 60 * 1000);
+            return date.toISOString();
+        }
+        
+        // If it's a Date object
+        if (value instanceof Date) {
+            return value.toISOString();
+        }
+        
+        console.warn('Не удалось распарсить дату:', value);
+        return value.toString();
     }
 
     // Get standard column name for field type
