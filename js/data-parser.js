@@ -6,14 +6,13 @@ class DataParser {
         this.processedData = null;
         this.dailyStats = null;
         this.supportedColumns = {
-            pairs: ['Pairs', 'Pair', 'Symbol', 'Trading Pair', 'Market'],
-            time: ['Time', 'Date', 'Timestamp', 'DateTime', 'Created Time', 'Trade Time'],
-            side: ['Side', 'Type', 'Direction', 'Order Side', 'Trade Side'],
-            price: ['Filled Price', 'Price', 'Fill Price', 'Executed Price', 'Trade Price', 'Execution Price'],
-            amount: ['Executed Amount', 'Amount', 'Quantity', 'Size', 'Trade Amount', 'Volume'],
-            total: ['Total', 'Value', 'Notional', 'Trade Value', 'Gross Amount'],
-            fee: ['Fee', 'Commission', 'Fees', 'Trading Fee', 'Transaction Fee'],
-            role: ['Role', 'Maker/Taker', 'Type', 'Order Type']
+            pairs: ['Pairs', 'Pair', 'Symbol', 'Trading Pair', 'Market', 'Instrument', 'Asset', 'Currency Pair'],
+            time: ['Time', 'Date', 'Timestamp', 'DateTime', 'Created Time', 'Trade Time', 'Execution Time', 'Order Time', 'Fill Time', 'Created', 'Trade Date'],
+            side: ['Side', 'Type', 'Direction', 'Order Side', 'Trade Side', 'Buy/Sell', 'Order Type', 'Action'],
+            price: ['Filled Price', 'Price', 'Fill Price', 'Executed Price', 'Trade Price', 'Execution Price', 'Order Price', 'Market Price', 'Last Price'],
+            amount: ['Executed Amount', 'Amount', 'Quantity', 'Size', 'Trade Amount', 'Volume', 'Executed Quantity', 'Fill Amount', 'Order Amount'],
+            total: ['Total', 'Value', 'Notional', 'Trade Value', 'Gross Amount', 'Net Amount', 'Order Value', 'Fill Value', 'Trade Total'],
+            fee: ['Fee', 'Commission', 'Fees', 'Trading Fee', 'Transaction Fee', 'Order Fee', 'Fill Fee', 'Commission Fee']
         };
     }
 
@@ -264,8 +263,19 @@ class DataParser {
             console.log('Available headers:', headers);
             console.log('Supported columns:', this.supportedColumns);
             
-            // Instead of throwing error, just warn and continue
+            // Show warning but don't block processing
             console.warn(`Предупреждение: отсутствуют некоторые колонки: ${missingColumns.join(', ')}`);
+            console.warn('Система попытается обработать файл с доступными данными');
+            
+            // Try to find alternative columns
+            missingColumns.forEach(missing => {
+                console.log(`Ищем альтернативы для ${missing}:`);
+                headers.forEach(header => {
+                    if (header) {
+                        console.log(`  ${header} -> возможное соответствие`);
+                    }
+                });
+            });
         }
 
         // Validate data types in sample rows
@@ -306,10 +316,11 @@ class DataParser {
         const headers = Object.keys(row);
         const possibleColumns = this.supportedColumns[fieldType] || [];
         
-        // First, try exact match
+        // First, try exact match (case insensitive)
         for (const header of headers) {
             for (const possibleCol of possibleColumns) {
                 if (header.toLowerCase() === possibleCol.toLowerCase()) {
+                    console.log(`Found exact match for ${fieldType}: ${header}`);
                     return header;
                 }
             }
@@ -320,14 +331,38 @@ class DataParser {
             for (const possibleCol of possibleColumns) {
                 if (header.toLowerCase().includes(possibleCol.toLowerCase()) ||
                     possibleCol.toLowerCase().includes(header.toLowerCase())) {
+                    console.log(`Found partial match for ${fieldType}: ${header} -> ${possibleCol}`);
                     return header;
                 }
             }
         }
         
+        // Try fuzzy matching for common variations
+        const fuzzyMatches = {
+            time: ['time', 'date', 'created', 'execution', 'fill', 'order'],
+            side: ['side', 'type', 'direction', 'buy', 'sell', 'action'],
+            total: ['total', 'value', 'amount', 'gross', 'net', 'notional'],
+            pairs: ['pair', 'symbol', 'market', 'instrument', 'asset'],
+            price: ['price', 'rate', 'cost'],
+            amount: ['amount', 'quantity', 'size', 'volume'],
+            fee: ['fee', 'commission', 'cost']
+        };
+        
+        if (fuzzyMatches[fieldType]) {
+            for (const header of headers) {
+                for (const fuzzyTerm of fuzzyMatches[fieldType]) {
+                    if (header.toLowerCase().includes(fuzzyTerm)) {
+                        console.log(`Found fuzzy match for ${fieldType}: ${header} -> ${fuzzyTerm}`);
+                        return header;
+                    }
+                }
+            }
+        }
+        
         // For debugging, log what we found
-        console.log(`Looking for ${fieldType}, found headers:`, headers);
-        console.log(`Possible columns for ${fieldType}:`, possibleColumns);
+        console.log(`No match found for ${fieldType}`);
+        console.log(`  Looking for: ${possibleColumns.join(', ')}`);
+        console.log(`  Available headers: ${headers.join(', ')}`);
         
         return null;
     }

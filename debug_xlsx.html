@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>XLSX Debug</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+</head>
+<body>
+    <h1>XLSX File Structure Debug</h1>
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <div id="output"></div>
+
+    <script>
+        document.getElementById('fileInput').addEventListener('change', function(e) {
+            const file = e.target.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        
+                        const sheetName = workbook.SheetNames[0];
+                        const worksheet = workbook.Sheets[sheetName];
+                        
+                        // Get raw data
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1 });
+                        
+                        const output = document.getElementById('output');
+                        output.innerHTML = `
+                            <h2>File Analysis</h2>
+                            <p><strong>File:</strong> ${file.name}</p>
+                            <p><strong>Sheet Name:</strong> ${sheetName}</p>
+                            <p><strong>Total Rows:</strong> ${jsonData.length}</p>
+                            
+                            <h3>Headers (Row 1):</h3>
+                            <table border="1" style="border-collapse: collapse; margin: 10px 0;">
+                                <tr>
+                                    <th>Column Index</th>
+                                    <th>Header Name</th>
+                                    <th>Type</th>
+                                </tr>
+                                ${jsonData[0].map((header, index) => `
+                                    <tr>
+                                        <td>${index}</td>
+                                        <td>${header || '(empty)'}</td>
+                                        <td>${typeof header}</td>
+                                    </tr>
+                                `).join('')}
+                            </table>
+                            
+                            <h3>First 3 Data Rows:</h3>
+                            <table border="1" style="border-collapse: collapse; margin: 10px 0;">
+                                <tr>
+                                    ${jsonData[0].map(header => `<th>${header || 'Col' + index}</th>`).join('')}
+                                </tr>
+                                ${jsonData.slice(1, 4).map(row => `
+                                    <tr>
+                                        ${row.map(cell => `<td>${cell || ''}</td>`).join('')}
+                                    </tr>
+                                `).join('')}
+                            </table>
+                            
+                            <h3>Column Analysis:</h3>
+                            <div id="columnAnalysis"></div>
+                        `;
+                        
+                        // Analyze columns
+                        const headers = jsonData[0];
+                        const analysis = document.getElementById('columnAnalysis');
+                        
+                        const possibleMappings = {
+                            time: ['time', 'date', 'timestamp', 'datetime', 'created', 'trade'],
+                            side: ['side', 'type', 'direction', 'order', 'trade'],
+                            total: ['total', 'value', 'notional', 'trade', 'gross', 'amount'],
+                            pairs: ['pairs', 'pair', 'symbol', 'trading', 'market'],
+                            price: ['price', 'filled', 'executed', 'trade', 'execution'],
+                            amount: ['amount', 'quantity', 'size', 'volume', 'executed'],
+                            fee: ['fee', 'commission', 'fees', 'trading', 'transaction']
+                        };
+                        
+                        let analysisHtml = '<table border="1" style="border-collapse: collapse;">';
+                        analysisHtml += '<tr><th>Column</th><th>Possible Mappings</th><th>Sample Values</th></tr>';
+                        
+                        headers.forEach((header, index) => {
+                            if (header) {
+                                const headerLower = header.toLowerCase();
+                                const mappings = [];
+                                
+                                Object.keys(possibleMappings).forEach(key => {
+                                    if (possibleMappings[key].some(term => headerLower.includes(term))) {
+                                        mappings.push(key);
+                                    }
+                                });
+                                
+                                const sampleValues = jsonData.slice(1, 4).map(row => row[index]).filter(v => v !== undefined && v !== '').slice(0, 2);
+                                
+                                analysisHtml += `
+                                    <tr>
+                                        <td><strong>${header}</strong></td>
+                                        <td>${mappings.length > 0 ? mappings.join(', ') : 'No match'}</td>
+                                        <td>${sampleValues.join(', ')}</td>
+                                    </tr>
+                                `;
+                            }
+                        });
+                        
+                        analysisHtml += '</table>';
+                        analysis.innerHTML = analysisHtml;
+                        
+                    } catch (error) {
+                        document.getElementById('output').innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+                        console.error('Error:', error);
+                    }
+                };
+                reader.readAsArrayBuffer(file);
+            }
+        });
+    </script>
+</body>
+</html>
