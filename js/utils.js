@@ -289,40 +289,38 @@ class Utils {
                 pairStats[pair].fees += fee;
             });
             
-            // For trading P&L calculation, we need to understand that this is spot trading
-            // where profit comes from the difference between buy and sell prices
-            // Since we don't have position tracking, we'll calculate daily net flow
+            // For GRID TRADING calculation:
+            // - Multiple buys accumulate inventory at different price levels
+            // - Each sell represents a completed profitable trade when target % is reached
+            // - Daily profit = Total sells - Total buys - Total fees
+            // - This gives us the net profit from grid operations
             
-            let totalProfit = 0;
             let totalBuyValue = 0;
             let totalSellValue = 0;
             
+            // Calculate total buy and sell values
             Object.values(pairStats).forEach(pairStat => {
                 totalBuyValue += pairStat.buyValue;
                 totalSellValue += pairStat.sellValue;
             });
             
-            // Net trading result for the day (sells minus buys minus fees)
-            totalProfit = totalSellValue - totalBuyValue - totalFees;
+            // Grid trading profit calculation
+            // Each sell is a completed profitable operation from the grid
+            const totalProfit = totalSellValue - totalBuyValue - totalFees;
             
-            // Calculate win rate based on profitable trades
-            const profitableTrades = dayTrades.filter(trade => {
+            // For grid trading, win rate is based on sell operations
+            // Each sell should be profitable since grid bots sell at target profit %
+            const sellTrades = dayTrades.filter(trade => trade.Side === 'Sell');
+            const profitableSells = sellTrades.filter(trade => {
                 const total = parseFloat(trade.Total) || 0;
                 const fee = parseFloat(trade.Fee) || 0;
-                const netValue = total - fee;
-                
-                // For spot trading, we consider:
-                // - Sells as potentially profitable if net value > average buy price for same pair
-                // - For simplicity, we'll consider trades with higher volume as more likely profitable
-                if (trade.Side === 'Sell') {
-                    return netValue > 10; // Arbitrary threshold for meaningful profit
-                } else {
-                    return false; // Buys are costs, not profits
-                }
+                // In grid trading, sells should always be profitable
+                // We check if the net value is positive after fees
+                return (total - fee) > 0;
             });
             
-            const sellTrades = dayTrades.filter(trade => trade.Side === 'Sell').length;
-            const winRate = sellTrades > 0 ? (profitableTrades.length / sellTrades) * 100 : 0;
+            // Win rate = percentage of successful sell operations
+            const winRate = sellTrades.length > 0 ? (profitableSells.length / sellTrades.length) * 100 : 100;
             
             dailyStats[date] = {
                 date: date,
