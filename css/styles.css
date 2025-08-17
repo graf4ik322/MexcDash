@@ -1,163 +1,62 @@
-/* Monthly Cards */
-.monthly-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1.75rem;
+/* Custom CSS Variables */
+:root {
+    --primary-color: #0d6efd;
+    --success-color: #198754;
+    --warning-color: #ffc107;
+    --danger-color: #dc3545;
+    --info-color: #0dcaf0;
+    --secondary-color: #6c757d;
+    --light-color: #f8f9fa;
+    --dark-color: #212529;
+    --border-radius: 0.75rem;
+    --box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    --box-shadow-lg: 0 1rem 3rem rgba(0, 0, 0, 0.175);
+}
+
+/* Global Styles */
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    line-height: 1.6;
+}
+
+/* Card Styles */
+.card {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow);
     transition: all 0.3s ease;
-    position: relative;
-    overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
-.monthly-card:hover {
-    transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
-}
-
-.monthly-card.profit {
-    border-left: 5px solid var(--profit-color);
-    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(76, 175, 80, 0.05) 100%);
-}
-
-.monthly-card.loss {
-    border-left: 5px solid var(--loss-color);
-    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(244, 67, 54, 0.05) 100%);
-}
-
-.monthly-card-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    margin-bottom: 1.5rem;
-}
-
-.monthly-card-title h5 {
-    color: var(--text-color);
-    font-weight: 700;
-    font-size: 1.25rem;
-    margin-bottom: 0.25rem;
-}
-
-.monthly-subtitle {
-    color: var(--text-muted);
-    font-size: 0.875rem;
-    font-weight: 500;
-}
-
-.monthly-card-status {
-    width: 12px;
-    height: 12px;
-    border-radius: 50%;
-    margin-top: 0.25rem;
-}
-
-.monthly-card-status.profit {
-    background: var(--profit-color);
-    box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
-}
-
-.monthly-card-status.loss {
-    background: var(--loss-color);
-    box-shadow: 0 0 8px rgba(244, 67, 54, 0.4);
-}
-
-.monthly-card-profit {
-    text-align: center;
-    margin-bottom: 2rem;
-}
-
-.monthly-card-profit .profit-amount {
-    font-size: 2rem;
-    font-weight: 800;
-    line-height: 1.2;
-}
-
-.monthly-card-profit.profit {
-    color: var(--profit-color);
-}
-
-.monthly-card-profit.loss {
-    color: var(--loss-color);
-}
-
-.monthly-card-pairs {
-    border-top: 1px solid var(--border-color);
-    padding-top: 1rem;
-}
-
-.monthly-card-pairs h6 {
-    color: var(--text-color);
-    font-weight: 600;
-    margin-bottom: 1rem;
-}
-
-.pairs-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 0.75rem;
-    margin-bottom: 1rem;
-}
-
-.pair-item {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 0.5rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    font-size: 0.875rem;
-}
-
-.pair-name {
-    color: var(--text-color);
-    font-weight: 500;
-}
-
-.pair-profit {
-    font-weight: 600;
-}
-
-.pair-profit.profit {
-    color: var(--profit-color);
-}
-
-.pair-profit.loss {
-    color: var(--loss-color);
-}
-
-.more-pairs {
-    text-align: center;
-    color: var(--text-muted);
-    font-size: 0.875rem;
-    font-style: italic;
+.card:hover {
+    box-shadow: var(--box-shadow-lg);
+    transform: translateY(-2px);
 }
 
 /* Pair Cards */
 .pair-card {
-    background: var(--card-bg);
-    border: 1px solid var(--border-color);
-    border-radius: 16px;
-    padding: 1.75rem;
+    background: white;
+    border: 1px solid #e9ecef;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
     transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: var(--box-shadow);
 }
 
 .pair-card:hover {
     transform: translateY(-4px);
-    box-shadow: 0 12px 30px rgba(0, 0, 0, 0.2);
+    box-shadow: var(--box-shadow-lg);
 }
 
 .pair-card.profit {
-    border-left: 5px solid var(--profit-color);
-    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(76, 175, 80, 0.05) 100%);
+    border-left: 4px solid var(--success-color);
+    background: linear-gradient(135deg, #ffffff 0%, rgba(25, 135, 84, 0.05) 100%);
 }
 
 .pair-card.loss {
-    border-left: 5px solid var(--loss-color);
-    background: linear-gradient(135deg, var(--card-bg) 0%, rgba(244, 67, 54, 0.05) 100%);
+    border-left: 4px solid var(--danger-color);
+    background: linear-gradient(135deg, #ffffff 0%, rgba(220, 53, 69, 0.05) 100%);
 }
 
 .pair-card-header {
@@ -168,14 +67,14 @@
 }
 
 .pair-card-title h5 {
-    color: var(--text-color);
+    color: var(--dark-color);
     font-weight: 700;
     font-size: 1.25rem;
     margin-bottom: 0.25rem;
 }
 
 .pair-subtitle {
-    color: var(--text-muted);
+    color: var(--secondary-color);
     font-size: 0.875rem;
     font-weight: 500;
 }
@@ -188,13 +87,13 @@
 }
 
 .pair-card-status.profit {
-    background: var(--profit-color);
-    box-shadow: 0 0 8px rgba(76, 175, 80, 0.4);
+    background: var(--success-color);
+    box-shadow: 0 0 8px rgba(25, 135, 84, 0.4);
 }
 
 .pair-card-status.loss {
-    background: var(--loss-color);
-    box-shadow: 0 0 8px rgba(244, 67, 54, 0.4);
+    background: var(--danger-color);
+    box-shadow: 0 0 8px rgba(220, 53, 69, 0.4);
 }
 
 .pair-card-profit {
@@ -203,24 +102,24 @@
 }
 
 .profit-amount {
-    font-size: 2rem;
+    font-size: 2.5rem;
     font-weight: 800;
     line-height: 1.2;
     margin-bottom: 0.5rem;
 }
 
 .profit-percentage {
-    font-size: 1rem;
+    font-size: 1.125rem;
     font-weight: 600;
     opacity: 0.8;
 }
 
 .pair-card-profit.profit {
-    color: var(--profit-color);
+    color: var(--success-color);
 }
 
 .pair-card-profit.loss {
-    color: var(--loss-color);
+    color: var(--danger-color);
 }
 
 .pair-card-stats {
@@ -229,13 +128,14 @@
 
 .stat-item {
     text-align: center;
-    padding: 0.75rem;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 8px;
+    padding: 1rem;
+    background: rgba(0, 0, 0, 0.02);
+    border-radius: 0.5rem;
+    border: 1px solid rgba(0, 0, 0, 0.05);
 }
 
 .stat-label {
-    color: var(--text-muted);
+    color: var(--secondary-color);
     font-size: 0.75rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -244,7 +144,7 @@
 }
 
 .stat-value {
-    font-size: 1.125rem;
+    font-size: 1.25rem;
     font-weight: 700;
 }
 
@@ -254,41 +154,139 @@
 
 .detail-item {
     text-align: center;
-    padding: 0.5rem;
+    padding: 0.75rem;
 }
 
 .detail-label {
-    color: var(--text-muted);
+    color: var(--secondary-color);
     font-size: 0.75rem;
     font-weight: 600;
     margin-bottom: 0.25rem;
 }
 
 .detail-value {
-    font-size: 1rem;
+    font-size: 1.125rem;
     font-weight: 700;
-    color: var(--text-color);
+    color: var(--dark-color);
 }
 
-.pair-card-position {
-    border-top: 1px solid var(--border-color);
-    padding-top: 1rem;
+/* Summary Cards */
+.summary-card {
+    background: linear-gradient(135deg, var(--primary-color) 0%, #0056b3 100%);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 1.5rem;
+    transition: all 0.3s ease;
 }
 
-.position-info {
-    text-align: center;
+.summary-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--box-shadow-lg);
 }
 
-.position-label {
-    color: var(--text-muted);
-    font-size: 0.75rem;
+/* Chart Styles */
+.chart-container {
+    position: relative;
+    height: 400px;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(5px);
+}
+
+/* Toast Styles */
+.toast {
+    border: none;
+    border-radius: var(--border-radius);
+    box-shadow: var(--box-shadow-lg);
+}
+
+/* Button Styles */
+.btn {
+    border-radius: 0.5rem;
     font-weight: 600;
-    margin-bottom: 0.25rem;
+    transition: all 0.3s ease;
 }
 
-.position-value {
-    font-size: 1rem;
-    font-weight: 700;
-    color: var(--text-color);
-    font-family: 'Courier New', monospace;
+.btn:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--box-shadow);
+}
+
+/* Form Controls */
+.form-control, .form-select {
+    border-radius: 0.5rem;
+    border: 1px solid #dee2e6;
+    transition: all 0.3s ease;
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+}
+
+/* Navigation */
+.navbar {
+    box-shadow: var(--box-shadow);
+}
+
+.navbar-brand {
+    font-size: 1.5rem;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .pair-card {
+        padding: 1rem;
+    }
+    
+    .profit-amount {
+        font-size: 2rem;
+    }
+    
+    .stat-item {
+        padding: 0.75rem;
+    }
+    
+    .stat-value {
+        font-size: 1rem;
+    }
+}
+
+/* Animation Classes */
+.fade-in {
+    animation: fadeIn 0.5s ease-in;
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--secondary-color);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #555;
 }
