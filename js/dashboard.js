@@ -11,10 +11,21 @@ class Dashboard {
 
     initializeEventListeners() {
         const fileInput = document.getElementById('fileInput');
+        
+        // Handle file input change
         fileInput.addEventListener('change', (e) => {
             if (e.target.files[0]) {
                 this.loadData(e.target.files[0]);
             }
+        });
+
+        // Handle upload buttons
+        document.getElementById('uploadBtn').addEventListener('click', () => {
+            fileInput.click();
+        });
+
+        document.getElementById('uploadBtnEmpty').addEventListener('click', () => {
+            fileInput.click();
         });
 
         // Sort options
