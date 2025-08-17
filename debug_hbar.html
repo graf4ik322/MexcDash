@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Debug HBAR_USDT</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/ru.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug { background: #f5f5f5; padding: 15px; margin: 10px 0; font-family: monospace; font-size: 12px; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .profit { color: green; font-weight: bold; }
+        .loss { color: red; font-weight: bold; }
+        .trade { margin: 5px 0; padding: 5px; background: #fff; border-left: 3px solid #007bff; }
+        .buy { border-left-color: #28a745; }
+        .sell { border-left-color: #dc3545; }
+    </style>
+</head>
+<body>
+    <h1>Debug HBAR_USDT Profit Calculation</h1>
+    
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <button onclick="debugHBAR()">Debug HBAR_USDT</button>
+    
+    <div id="results"></div>
+    
+    <script src="js/utils.js"></script>
+    <script src="js/data-parser.js"></script>
+    
+    <script>
+        async function debugHBAR() {
+            const fileInput = document.getElementById('fileInput');
+            const resultsDiv = document.getElementById('results');
+            
+            if (!fileInput.files[0]) {
+                alert('Выберите файл');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            resultsDiv.innerHTML = '<div class="debug">Обработка файла...</div>';
+            
+            try {
+                const dataParser = new DataParser();
+                const result = await dataParser.parseFile(file);
+                
+                console.log('Full result:', result);
+                
+                // Filter HBAR_USDT trades
+                const hbarTrades = result.processed.filter(trade => trade.Pairs === 'HBAR_USDT');
+                
+                console.log('HBAR_USDT trades:', hbarTrades);
+                
+                let html = '<h2>HBAR_USDT Analysis</h2>';
+                
+                // Show all HBAR trades
+                html += '<h3>All HBAR_USDT Trades:</h3>';
+                hbarTrades.forEach((trade, index) => {
+                    const tradeClass = trade.Side === 'Buy' ? 'buy' : 'sell';
+                    html += `
+                        <div class="trade ${tradeClass}">
+                            <strong>${index + 1}. ${trade.Side}</strong><br>
+                            Amount: ${trade['Executed Amount']}<br>
+                            Price: ${trade['Filled Price']}<br>
+                            Total: ${trade.Total}<br>
+                            Fee: ${trade.Fee}<br>
+                            Time: ${trade.Time}
+                        </div>
+                    `;
+                });
+                
+                // Show pair data
+                if (result.pairs && result.pairs.HBAR_USDT) {
+                    const hbarData = result.pairs.HBAR_USDT;
+                    html += `
+                        <h3>HBAR_USDT Summary:</h3>
+                        <div class="result">
+                            <p><strong>Total Buy Value:</strong> ${hbarData.totalBuyValue.toFixed(2)} USDT</p>
+                            <p><strong>Total Sell Value:</strong> ${hbarData.totalSellValue.toFixed(2)} USDT</p>
+                            <p><strong>Total Fees:</strong> ${hbarData.totalFees.toFixed(2)} USDT</p>
+                            <p><strong>Realized Profit:</strong> <span class="${hbarData.realizedProfit >= 0 ? 'profit' : 'loss'}">${hbarData.realizedProfit.toFixed(2)} USDT</span></p>
+                            <p><strong>Net Profit:</strong> <span class="${hbarData.netProfit >= 0 ? 'profit' : 'loss'}">${hbarData.netProfit.toFixed(2)} USDT</span></p>
+                            <p><strong>Profit Percentage:</strong> ${hbarData.profitPercentage.toFixed(2)}%</p>
+                            <p><strong>Trade Count:</strong> ${hbarData.tradeCount}</p>
+                            <p><strong>Buy Count:</strong> ${hbarData.buyCount}</p>
+                            <p><strong>Sell Count:</strong> ${hbarData.sellCount}</p>
+                            <p><strong>Current Position:</strong> ${hbarData.currentPosition.amount.toFixed(6)}</p>
+                        </div>
+                    `;
+                }
+                
+                // Manual calculation
+                html += '<h3>Manual Calculation:</h3>';
+                let totalBuyValue = 0;
+                let totalSellValue = 0;
+                let totalFees = 0;
+                let position = { amount: 0, cost: 0, avgPrice: 0 };
+                let realizedProfit = 0;
+                
+                hbarTrades.forEach((trade, index) => {
+                    const total = parseFloat(trade.Total) || 0;
+                    const fee = parseFloat(trade.Fee) || 0;
+                    const amount = parseFloat(trade['Executed Amount']) || 0;
+                    const price = parseFloat(trade['Filled Price']) || 0;
+                    
+                    totalFees += fee;
+                    
+                    if (trade.Side === 'Buy') {
+                        totalBuyValue += total;
+                        
+                        // Update position
+                        const newAmount = position.amount + amount;
+                        const newCost = position.cost + total;
+                        position.amount = newAmount;
+                        position.cost = newCost;
+                        position.avgPrice = newCost / newAmount;
+                        
+                        html += `<div class="debug">BUY ${index + 1}: ${amount} @ ${price} = ${total} | Position: ${position.amount.toFixed(6)} @ ${position.avgPrice.toFixed(6)} = ${position.cost.toFixed(2)}</div>`;
+                        
+                    } else if (trade.Side === 'Sell') {
+                        totalSellValue += total;
+                        
+                        if (position.amount > 0) {
+                            const buyValue = amount * position.avgPrice;
+                            const profit = total - buyValue - fee;
+                            realizedProfit += profit;
+                            
+                            // Update position
+                            position.amount -= amount;
+                            if (position.amount <= 0) {
+                                position.amount = 0;
+                                position.cost = 0;
+                                position.avgPrice = 0;
+                            } else {
+                                position.cost = position.amount * position.avgPrice;
+                            }
+                            
+                            html += `<div class="debug">SELL ${index + 1}: ${amount} @ ${price} = ${total} | Buy Value: ${buyValue.toFixed(2)} | Profit: ${profit.toFixed(2)} | Position: ${position.amount.toFixed(6)}</div>`;
+                        } else {
+                            html += `<div class="debug">SELL ${index + 1}: ${amount} @ ${price} = ${total} | No position to close</div>`;
+                        }
+                    }
+                });
+                
+                const netProfit = realizedProfit;
+                const profitPercentage = totalBuyValue > 0 ? (netProfit / totalBuyValue) * 100 : 0;
+                
+                html += `
+                    <h3>Manual Summary:</h3>
+                    <div class="result">
+                        <p><strong>Total Buy Value:</strong> ${totalBuyValue.toFixed(2)} USDT</p>
+                        <p><strong>Total Sell Value:</strong> ${totalSellValue.toFixed(2)} USDT</p>
+                        <p><strong>Total Fees:</strong> ${totalFees.toFixed(2)} USDT</p>
+                        <p><strong>Realized Profit:</strong> <span class="${realizedProfit >= 0 ? 'profit' : 'loss'}">${realizedProfit.toFixed(2)} USDT</span></p>
+                        <p><strong>Net Profit:</strong> <span class="${netProfit >= 0 ? 'profit' : 'loss'}">${netProfit.toFixed(2)} USDT</span></p>
+                        <p><strong>Profit Percentage:</strong> ${profitPercentage.toFixed(2)}%</p>
+                        <p><strong>Expected Profit:</strong> <span class="profit">73.81 USDT</span></p>
+                        <p><strong>Difference:</strong> <span class="${Math.abs(netProfit - 73.81) < 1 ? 'profit' : 'loss'}">${(netProfit - 73.81).toFixed(2)} USDT</span></p>
+                    </div>
+                `;
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `<div class="debug">Ошибка: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
