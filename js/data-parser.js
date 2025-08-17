@@ -43,9 +43,9 @@ class DataParser {
             this.processedData = this.normalizeData(data);
             // Configure P&L calculation for grid trading bot
             const pnlOptions = {
-                useFixedProfit: true,    // Use fixed profit margin
-                profitMargin: 0.015,     // 1.5% profit margin
-                ensurePositive: true     // Ensure all sells are profitable
+                useFixedProfit: false,   // Use actual profit calculation
+                profitMargin: 0.015,     // 1.5% profit margin (if used)
+                ensurePositive: false    // Use real data from trades
             };
             this.dailyStats = Utils.calculateDailyStats(this.processedData, pnlOptions);
             

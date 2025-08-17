@@ -83,14 +83,14 @@ class Dashboard {
         const pnlOptions = {
             useFixedProfit: useFixedProfit,
             profitMargin: 0.015,
-            ensurePositive: true
+            ensurePositive: useFixedProfit // Only ensure positive if using fixed profit
         };
         
         this.dailyData = Utils.calculateDailyStats(this.dataParser.rawProcessedData, pnlOptions);
         this.updateDashboard();
         
         // Show notification about calculation method
-        const method = useFixedProfit ? 'фиксированной прибыли' : 'реальных данных';
+        const method = useFixedProfit ? 'фиксированной прибыли' : 'реальных данных (FIFO)';
         Utils.showToast(`Пересчитано с использованием ${method}`, 'info');
     }
 

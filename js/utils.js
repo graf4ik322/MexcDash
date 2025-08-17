@@ -245,15 +245,15 @@ class Utils {
     // This function tracks positions across days and calculates only realized profits
     static calculateDailyStats(trades, options = {}) {
         const {
-            useFixedProfit = true, // Use fixed profit margin for grid trading bot
-            profitMargin = 0.015,  // 1.5% profit margin
-            ensurePositive = true  // Ensure all sells are profitable
+            useFixedProfit = false, // Use actual profit calculation
+            profitMargin = 0.015,   // 1.5% profit margin (if used)
+            ensurePositive = false  // Don't force positive - use real data
         } = options;
         
         const dailyStats = {};
         const groupedTrades = this.groupTradesByDate(trades);
         
-        // Track positions across all days
+        // Track positions across all days using FIFO (First In, First Out)
         const globalPositions = {};
         
         Object.keys(groupedTrades).forEach(date => {
@@ -302,7 +302,8 @@ class Utils {
                     globalPositions[pair] = {
                         totalAmount: 0,
                         totalCost: 0,
-                        averagePrice: 0
+                        averagePrice: 0,
+                        buyQueue: [] // FIFO queue for buy orders
                     };
                 }
                 
@@ -311,11 +312,19 @@ class Utils {
                     pairStats[pair].buyAmount += amount;
                     pairStats[pair].buyValue += total;
                     
-                    // Update both local and global positions
+                    // Add to FIFO queue
+                    globalPositions[pair].buyQueue.push({
+                        amount: amount,
+                        cost: total,
+                        price: price
+                    });
+                    
+                    // Update global position totals
                     globalPositions[pair].totalAmount += amount;
                     globalPositions[pair].totalCost += total;
                     globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
                     
+                    // Update local position
                     positions[pair].totalAmount += amount;
                     positions[pair].totalCost += total;
                     positions[pair].averagePrice = positions[pair].totalCost / positions[pair].totalAmount;
@@ -325,66 +334,60 @@ class Utils {
                     pairStats[pair].sellAmount += amount;
                     pairStats[pair].sellValue += total;
                     
-                    // Calculate realized P&L for this sell using global position
-                    if (globalPositions[pair].totalAmount > 0) {
-                        const sellValue = total;
-                        const sellAmount = amount;
-                        const avgBuyPrice = globalPositions[pair].averagePrice;
-                        const buyValue = sellAmount * avgBuyPrice;
+                    // Calculate realized P&L using FIFO method
+                    let remainingSellAmount = amount;
+                    let totalBuyCost = 0;
+                    let totalBuyAmount = 0;
+                    
+                    // Process sell against buy queue (FIFO)
+                    while (remainingSellAmount > 0 && globalPositions[pair].buyQueue.length > 0) {
+                        const buyOrder = globalPositions[pair].buyQueue[0];
                         
-                        // For grid trading bot that only trades profitably:
-                        // Each sell should be profitable, so we calculate profit margin
-                        // Profit = Sell Value - Buy Value - Fees
-                        // But since bot only sells at profit, we can also use a fixed profit margin
-                        
-                        // Option 1: Calculate actual profit (may show negative if data is incomplete)
-                        // const realizedPnL = sellValue - buyValue - fee;
-                        
-                        // Calculate profit based on settings
-                        let realizedPnL;
-                        
-                        if (useFixedProfit) {
-                            // Use fixed profit margin for grid trading bot
-                            realizedPnL = sellValue * profitMargin - fee;
+                        if (buyOrder.amount <= remainingSellAmount) {
+                            // Use entire buy order
+                            totalBuyCost += buyOrder.cost;
+                            totalBuyAmount += buyOrder.amount;
+                            remainingSellAmount -= buyOrder.amount;
+                            globalPositions[pair].buyQueue.shift(); // Remove from queue
                         } else {
-                            // Calculate actual profit from data
-                            const actualPnL = sellValue - buyValue - fee;
-                            
-                            if (ensurePositive) {
-                                // Ensure profit is never negative for grid trading bot
-                                realizedPnL = Math.max(actualPnL, sellValue * 0.01 - fee);
-                            } else {
-                                realizedPnL = actualPnL;
-                            }
+                            // Use partial buy order
+                            const usedRatio = remainingSellAmount / buyOrder.amount;
+                            totalBuyCost += buyOrder.cost * usedRatio;
+                            totalBuyAmount += remainingSellAmount;
+                            buyOrder.amount -= remainingSellAmount;
+                            buyOrder.cost -= buyOrder.cost * usedRatio;
+                            remainingSellAmount = 0;
                         }
-                        
-                        // Option 3: If we have complete data, use actual calculation
-                        // but ensure it's never negative for grid trading bot
-                        // const actualPnL = sellValue - buyValue - fee;
-                        // const realizedPnL = Math.max(actualPnL, sellValue * 0.01 - fee);
-                        
+                    }
+                    
+                    // Calculate realized P&L
+                    if (totalBuyAmount > 0) {
+                        const realizedPnL = total - totalBuyCost - fee;
                         pairStats[pair].realizedPnL += realizedPnL;
                         
-                        // Update global position (reduce by sold amount)
-                        globalPositions[pair].totalAmount -= sellAmount;
+                        // Update global position
+                        globalPositions[pair].totalAmount -= amount;
+                        globalPositions[pair].totalCost -= totalBuyCost;
+                        
                         if (globalPositions[pair].totalAmount <= 0) {
                             // Position fully closed
                             globalPositions[pair].totalAmount = 0;
                             globalPositions[pair].totalCost = 0;
                             globalPositions[pair].averagePrice = 0;
+                            globalPositions[pair].buyQueue = [];
                         } else {
-                            // Partial position closed, recalculate average price
-                            globalPositions[pair].totalCost = globalPositions[pair].totalAmount * avgBuyPrice;
+                            // Recalculate average price
+                            globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
                         }
                         
-                        // Update local position for display
-                        positions[pair].totalAmount -= sellAmount;
+                        // Update local position
+                        positions[pair].totalAmount -= amount;
                         if (positions[pair].totalAmount <= 0) {
                             positions[pair].totalAmount = 0;
                             positions[pair].totalCost = 0;
                             positions[pair].averagePrice = 0;
                         } else {
-                            positions[pair].totalCost = positions[pair].totalAmount * avgBuyPrice;
+                            positions[pair].totalCost = positions[pair].totalAmount * globalPositions[pair].averagePrice;
                         }
                     }
                 }
@@ -398,14 +401,22 @@ class Utils {
                 totalRealizedPnL += pairStat.realizedPnL;
             });
             
-            // For grid trading, we only count realized profits
-            // Unrealized gains/losses from open positions are not counted
+            // Use actual calculated profit
             const totalProfit = totalRealizedPnL;
             
-            // For grid trading bot, all sells should be profitable
-            // Win rate should always be 100% since bot only sells at profit
+            // Calculate win rate based on actual profitable sells
             const sellTrades = dayTrades.filter(trade => trade.Side === 'Sell');
-            const winRate = sellTrades.length > 0 ? 100 : 100; // Always 100% for grid trading bot
+            let profitableSells = 0;
+            
+            sellTrades.forEach(trade => {
+                const pair = trade.Pairs || 'UNKNOWN';
+                const pairStat = pairStats[pair];
+                if (pairStat && pairStat.realizedPnL > 0) {
+                    profitableSells++;
+                }
+            });
+            
+            const winRate = sellTrades.length > 0 ? (profitableSells / sellTrades.length) * 100 : 100;
             
             dailyStats[date] = {
                 date: date,
@@ -418,8 +429,8 @@ class Utils {
                 totalTrades: dayTrades.length,
                 trades: dayTrades,
                 pairStats: pairStats,
-                positions: positions, // Keep track of open positions for this day
-                globalPositions: { ...globalPositions } // Copy of global positions for reference
+                positions: positions,
+                globalPositions: { ...globalPositions }
             };
         });
         
