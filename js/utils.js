@@ -244,16 +244,10 @@ class Utils {
     // Calculate daily statistics from trades with proper P&L tracking for grid trading
     // This function tracks positions across days and calculates only realized profits
     static calculateDailyStats(trades, options = {}) {
-        const {
-            useFixedProfit = false, // Use actual profit calculation
-            profitMargin = 0.015,   // 1.5% profit margin (if used)
-            ensurePositive = false  // Don't force positive - use real data
-        } = options;
-        
         const dailyStats = {};
         const groupedTrades = this.groupTradesByDate(trades);
         
-        // Track positions across all days using FIFO (First In, First Out)
+        // Track positions across all days
         const globalPositions = {};
         
         Object.keys(groupedTrades).forEach(date => {
@@ -302,8 +296,7 @@ class Utils {
                     globalPositions[pair] = {
                         totalAmount: 0,
                         totalCost: 0,
-                        averagePrice: 0,
-                        buyQueue: [] // FIFO queue for buy orders
+                        averagePrice: 0
                     };
                 }
                 
@@ -312,14 +305,7 @@ class Utils {
                     pairStats[pair].buyAmount += amount;
                     pairStats[pair].buyValue += total;
                     
-                    // Add to FIFO queue
-                    globalPositions[pair].buyQueue.push({
-                        amount: amount,
-                        cost: total,
-                        price: price
-                    });
-                    
-                    // Update global position totals
+                    // Update global position
                     globalPositions[pair].totalAmount += amount;
                     globalPositions[pair].totalCost += total;
                     globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
@@ -334,77 +320,52 @@ class Utils {
                     pairStats[pair].sellAmount += amount;
                     pairStats[pair].sellValue += total;
                     
-                    // Calculate realized P&L using FIFO method
-                    let remainingSellAmount = amount;
-                    let totalBuyCost = 0;
-                    let totalBuyAmount = 0;
+                    // Calculate profit from this sell
+                    // Use the current average buy price for the sold amount
+                    const avgBuyPrice = globalPositions[pair].averagePrice;
+                    const buyValue = amount * avgBuyPrice;
+                    const realizedPnL = total - buyValue - fee;
                     
-                    // Process sell against buy queue (FIFO)
-                    while (remainingSellAmount > 0 && globalPositions[pair].buyQueue.length > 0) {
-                        const buyOrder = globalPositions[pair].buyQueue[0];
-                        
-                        if (buyOrder.amount <= remainingSellAmount) {
-                            // Use entire buy order
-                            totalBuyCost += buyOrder.cost;
-                            totalBuyAmount += buyOrder.amount;
-                            remainingSellAmount -= buyOrder.amount;
-                            globalPositions[pair].buyQueue.shift(); // Remove from queue
-                        } else {
-                            // Use partial buy order
-                            const usedRatio = remainingSellAmount / buyOrder.amount;
-                            totalBuyCost += buyOrder.cost * usedRatio;
-                            totalBuyAmount += remainingSellAmount;
-                            buyOrder.amount -= remainingSellAmount;
-                            buyOrder.cost -= buyOrder.cost * usedRatio;
-                            remainingSellAmount = 0;
-                        }
+                    pairStats[pair].realizedPnL += realizedPnL;
+                    
+                    // Update global position
+                    globalPositions[pair].totalAmount -= amount;
+                    globalPositions[pair].totalCost -= (amount * avgBuyPrice);
+                    
+                    if (globalPositions[pair].totalAmount <= 0) {
+                        // Position fully closed
+                        globalPositions[pair].totalAmount = 0;
+                        globalPositions[pair].totalCost = 0;
+                        globalPositions[pair].averagePrice = 0;
+                    } else {
+                        // Recalculate average price
+                        globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
                     }
                     
-                    // Calculate realized P&L
-                    if (totalBuyAmount > 0) {
-                        const realizedPnL = total - totalBuyCost - fee;
-                        pairStats[pair].realizedPnL += realizedPnL;
-                        
-                        // Update global position
-                        globalPositions[pair].totalAmount -= amount;
-                        globalPositions[pair].totalCost -= totalBuyCost;
-                        
-                        if (globalPositions[pair].totalAmount <= 0) {
-                            // Position fully closed
-                            globalPositions[pair].totalAmount = 0;
-                            globalPositions[pair].totalCost = 0;
-                            globalPositions[pair].averagePrice = 0;
-                            globalPositions[pair].buyQueue = [];
-                        } else {
-                            // Recalculate average price
-                            globalPositions[pair].averagePrice = globalPositions[pair].totalCost / globalPositions[pair].totalAmount;
-                        }
-                        
-                        // Update local position
-                        positions[pair].totalAmount -= amount;
-                        if (positions[pair].totalAmount <= 0) {
-                            positions[pair].totalAmount = 0;
-                            positions[pair].totalCost = 0;
-                            positions[pair].averagePrice = 0;
-                        } else {
-                            positions[pair].totalCost = positions[pair].totalAmount * globalPositions[pair].averagePrice;
-                        }
+                    // Update local position
+                    positions[pair].totalAmount -= amount;
+                    if (positions[pair].totalAmount <= 0) {
+                        positions[pair].totalAmount = 0;
+                        positions[pair].totalCost = 0;
+                        positions[pair].averagePrice = 0;
+                    } else {
+                        positions[pair].totalCost = positions[pair].totalAmount * globalPositions[pair].averagePrice;
                     }
                 }
                 
                 pairStats[pair].fees += fee;
             });
             
-            // Calculate total realized P&L for the day
+            // Calculate total realized P&L for the day (only from sells)
             let totalRealizedPnL = 0;
             Object.values(pairStats).forEach(pairStat => {
                 totalRealizedPnL += pairStat.realizedPnL;
             });
             
-            // Use actual calculated profit
+            // Only show profit from sells, ignore accumulation losses
             const totalProfit = totalRealizedPnL;
             
-            // Calculate win rate based on actual profitable sells
+            // Calculate win rate based on profitable sells
             const sellTrades = dayTrades.filter(trade => trade.Side === 'Sell');
             let profitableSells = 0;
             
