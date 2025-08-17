@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Simple Profit Calculation</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .result { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .profit { color: green; font-weight: bold; }
+        .loss { color: red; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>Test Simple Profit Calculation</h1>
+    
+    <input type="file" id="fileInput" accept=".xlsx,.xls">
+    <button onclick="testCalculation()">Test Calculation</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        function parseExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                            header: 1,
+                            defval: '',
+                            raw: false
+                        });
+                        
+                        if (jsonData.length < 2) {
+                            throw new Error('Excel файл должен содержать данные');
+                        }
+                        
+                        // Use known headers from the file structure
+                        const headers = ['Pairs', 'Time', 'Side', 'Filled Price', 'Executed Amount', 'Total', 'Fee', 'Role'];
+                        const dataRows = jsonData.slice(1); // Start from second row
+                        
+                        const processedData = dataRows.map((row, index) => {
+                            const obj = {};
+                            headers.forEach((header, colIndex) => {
+                                if (row[colIndex] !== undefined && row[colIndex] !== null && row[colIndex] !== '') {
+                                    obj[header] = row[colIndex];
+                                } else {
+                                    obj[header] = '';
+                                }
+                            });
+                            return obj;
+                        }).filter(row => {
+                            return Object.values(row).some(value => value !== '' && value !== null && value !== undefined);
+                        });
+                        
+                        resolve(processedData);
+                        
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function calculatePairProfit(trades) {
+            console.log('Calculating pair profit for', trades.length, 'trades');
+            
+            // Group trades by pair
+            const pairData = {};
+            
+            trades.forEach(trade => {
+                const pair = trade.Pairs || 'UNKNOWN';
+                const total = parseFloat(trade.Total) || 0;
+                const fee = parseFloat(trade.Fee) || 0;
+                const side = trade.Side;
+                
+                if (!pairData[pair]) {
+                    pairData[pair] = {
+                        pair: pair,
+                        totalBuyValue: 0,
+                        totalSellValue: 0,
+                        totalFees: 0
+                    };
+                }
+                
+                // Update totals
+                pairData[pair].totalFees += fee;
+                
+                if (side === 'Buy') {
+                    pairData[pair].totalBuyValue += total;
+                } else if (side === 'Sell') {
+                    pairData[pair].totalSellValue += total;
+                }
+            });
+            
+            // Calculate final statistics with simple formula
+            Object.keys(pairData).forEach(pairKey => {
+                const pair = pairData[pairKey];
+                
+                // Simple profit calculation: Total Sell - Total Buy - Fees
+                pair.netProfit = pair.totalSellValue - pair.totalBuyValue - pair.totalFees;
+                
+                // Calculate profit percentage based on total buy value
+                if (pair.totalBuyValue > 0) {
+                    pair.profitPercentage = (pair.netProfit / pair.totalBuyValue) * 100;
+                } else {
+                    pair.profitPercentage = 0;
+                }
+                
+                console.log(`${pair.pair}:`, {
+                    buyValue: pair.totalBuyValue.toFixed(2),
+                    sellValue: pair.totalSellValue.toFixed(2),
+                    fees: pair.totalFees.toFixed(2),
+                    netProfit: pair.netProfit.toFixed(2),
+                    profitPercentage: pair.profitPercentage.toFixed(2) + '%'
+                });
+            });
+            
+            return pairData;
+        }
+
+        async function testCalculation() {
+            const fileInput = document.getElementById('fileInput');
+            const resultsDiv = document.getElementById('results');
+            
+            if (!fileInput.files[0]) {
+                alert('Выберите файл');
+                return;
+            }
+            
+            const file = fileInput.files[0];
+            resultsDiv.innerHTML = '<div>Обработка файла...</div>';
+            
+            try {
+                const processedData = await parseExcelFile(file);
+                const pairData = calculatePairProfit(processedData);
+                
+                let html = '<h2>Results:</h2>';
+                
+                // Show HBAR_USDT specifically
+                if (pairData.HBAR_USDT) {
+                    const hbar = pairData.HBAR_USDT;
+                    html += `
+                        <h3>HBAR_USDT:</h3>
+                        <div class="result">
+                            <p><strong>Total Buy Value:</strong> ${hbar.totalBuyValue.toFixed(2)} USDT</p>
+                            <p><strong>Total Sell Value:</strong> ${hbar.totalSellValue.toFixed(2)} USDT</p>
+                            <p><strong>Total Fees:</strong> ${hbar.totalFees.toFixed(2)} USDT</p>
+                            <p><strong>Net Profit:</strong> <span class="${hbar.netProfit >= 0 ? 'profit' : 'loss'}">${hbar.netProfit.toFixed(2)} USDT</span></p>
+                            <p><strong>Profit Percentage:</strong> ${hbar.profitPercentage.toFixed(2)}%</p>
+                            <p><strong>Expected Profit:</strong> <span class="profit">73.81 USDT</span></p>
+                            <p><strong>Difference:</strong> <span class="${Math.abs(hbar.netProfit - 73.81) < 1 ? 'profit' : 'loss'}">${(hbar.netProfit - 73.81).toFixed(2)} USDT</span></p>
+                        </div>
+                    `;
+                }
+                
+                // Show all pairs
+                html += '<h3>All Pairs:</h3>';
+                Object.values(pairData)
+                    .sort((a, b) => b.netProfit - a.netProfit)
+                    .forEach(pair => {
+                        html += `
+                            <div class="result">
+                                <h4>${pair.pair}</h4>
+                                <p>Buy: ${pair.totalBuyValue.toFixed(2)} | Sell: ${pair.totalSellValue.toFixed(2)} | Fees: ${pair.totalFees.toFixed(2)}</p>
+                                <p>Profit: <span class="${pair.netProfit >= 0 ? 'profit' : 'loss'}">${pair.netProfit.toFixed(2)} USDT (${pair.profitPercentage.toFixed(2)}%)</span></p>
+                            </div>
+                        `;
+                    });
+                
+                resultsDiv.innerHTML = html;
+                
+            } catch (error) {
+                console.error('Error:', error);
+                resultsDiv.innerHTML = `<div>Ошибка: ${error.message}</div>`;
+            }
+        }
+    </script>
+</body>
+</html>
