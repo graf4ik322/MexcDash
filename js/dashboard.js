@@ -77,12 +77,21 @@ class Dashboard {
     // Load data from file
     async loadData(file) {
         try {
+            console.log('Loading file:', file.name);
             const result = await this.dataParser.parseFile(file);
+            console.log('File loaded successfully:', result);
+            
             this.dailyData = result.daily;
+            console.log('Daily data set:', this.dailyData);
+            console.log('Number of days:', Object.keys(this.dailyData).length);
+            
             this.updateDashboard();
             this.showDashboard();
+            
+            console.log('Dashboard updated successfully');
         } catch (error) {
             console.error('Error loading data:', error);
+            Utils.showToast('Ошибка загрузки файла: ' + error.message, 'error');
         }
     }
 
@@ -132,12 +141,23 @@ class Dashboard {
 
     // Update dashboard with current filters
     updateDashboard() {
-        if (!this.dailyData) return;
+        console.log('updateDashboard called');
+        console.log('this.dailyData:', this.dailyData);
+        
+        if (!this.dailyData) {
+            console.log('No daily data available');
+            return;
+        }
         
         this.filteredData = this.getFilteredData();
+        console.log('Filtered data:', this.filteredData);
+        console.log('Number of filtered days:', Object.keys(this.filteredData).length);
+        
         this.renderCards();
         this.renderSummary();
         this.updateCharts();
+        
+        console.log('Dashboard update completed');
     }
 
     // Get filtered data based on current settings

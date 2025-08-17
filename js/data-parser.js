@@ -203,22 +203,25 @@ class DataParser {
                     });
                     
                     if (jsonData.length < 2) {
-                        throw new Error('Excel файл должен содержать заголовки и данные');
+                        throw new Error('Excel файл должен содержать данные');
                     }
                     
                     console.log('Raw Excel data structure:', jsonData.slice(0, 3));
                     
-                    // Headers are in the first row, data starts from second row
-                    const headers = jsonData[0];
-                    const dataRows = jsonData.slice(1);
+                    // The first row is empty, data starts from second row
+                    // We need to use the known headers from the file structure
+                    const headers = ['Pairs', 'Time', 'Side', 'Filled Price', 'Executed Amount', 'Total', 'Fee', 'Role'];
+                    const dataRows = jsonData.slice(1); // Start from second row
                     
-                    console.log('Headers found:', headers);
+                    console.log('Using headers:', headers);
                     
                     const processedData = dataRows.map((row, index) => {
                         const obj = {};
                         headers.forEach((header, colIndex) => {
-                            if (header && header.trim()) { // Skip empty headers
-                                obj[header.trim()] = row[colIndex] || '';
+                            if (row[colIndex] !== undefined && row[colIndex] !== null && row[colIndex] !== '') {
+                                obj[header] = row[colIndex];
+                            } else {
+                                obj[header] = '';
                             }
                         });
                         return obj;
