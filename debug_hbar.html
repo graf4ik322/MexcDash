@@ -5,10 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Debug HBAR_USDT</title>
     
-    <!-- Bootstrap CSS -->
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
-    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.10.0/font/bootstrap-icons.css" rel="stylesheet">
-    
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/moment.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.4/locale/ru.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -21,6 +17,7 @@
         .trade { margin: 5px 0; padding: 5px; background: #fff; border-left: 3px solid #007bff; }
         .buy { border-left-color: #28a745; }
         .sell { border-left-color: #dc3545; }
+        .loading { text-align: center; padding: 20px; color: #666; }
     </style>
 </head>
 <body>
@@ -31,26 +28,204 @@
     
     <div id="results"></div>
     
-    <!-- Hidden elements needed by DataParser -->
-    <div id="loadingOverlay" class="d-none"></div>
-    <div id="errorToast" class="toast d-none">
-        <div class="toast-header">
-            <i class="bi bi-exclamation-triangle me-2"></i>
-            <strong class="me-auto">Ошибка</strong>
-            <button type="button" class="btn-close" data-bs-dismiss="toast"></button>
-        </div>
-        <div class="toast-body">
-            Произошла ошибка при обработке файла
-        </div>
-    </div>
-    
-    <!-- Bootstrap JS -->
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
-    
-    <script src="js/utils.js"></script>
-    <script src="js/data-parser.js"></script>
-    
     <script>
+        // Simple utility functions
+        function formatCurrency(value) {
+            const absValue = Math.abs(value);
+            let formatted;
+            
+            if (absValue >= 1000000) {
+                formatted = (absValue / 1000000).toFixed(2) + 'M';
+            } else if (absValue >= 1000) {
+                formatted = (absValue / 1000).toFixed(2) + 'K';
+            } else {
+                formatted = absValue.toFixed(2);
+            }
+            
+            const sign = value >= 0 ? '+' : '-';
+            return `${sign}${formatted} USDT`;
+        }
+
+        function parseExcelFile(file) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    try {
+                        const data = new Uint8Array(e.target.result);
+                        const workbook = XLSX.read(data, { type: 'array' });
+                        const worksheet = workbook.Sheets[workbook.SheetNames[0]];
+                        
+                        const jsonData = XLSX.utils.sheet_to_json(worksheet, {
+                            header: 1,
+                            defval: '',
+                            raw: false
+                        });
+                        
+                        if (jsonData.length < 2) {
+                            throw new Error('Excel файл должен содержать данные');
+                        }
+                        
+                        console.log('Raw Excel data structure:', jsonData.slice(0, 3));
+                        
+                        // Use known headers from the file structure
+                        const headers = ['Pairs', 'Time', 'Side', 'Filled Price', 'Executed Amount', 'Total', 'Fee', 'Role'];
+                        const dataRows = jsonData.slice(1); // Start from second row
+                        
+                        console.log('Using headers:', headers);
+                        
+                        const processedData = dataRows.map((row, index) => {
+                            const obj = {};
+                            headers.forEach((header, colIndex) => {
+                                if (row[colIndex] !== undefined && row[colIndex] !== null && row[colIndex] !== '') {
+                                    obj[header] = row[colIndex];
+                                } else {
+                                    obj[header] = '';
+                                }
+                            });
+                            return obj;
+                        }).filter(row => {
+                            return Object.values(row).some(value => value !== '' && value !== null && value !== undefined);
+                        });
+                        
+                        console.log('Processed data sample:', processedData.slice(0, 3));
+                        resolve(processedData);
+                        
+                    } catch (error) {
+                        reject(error);
+                    }
+                };
+                reader.onerror = reject;
+                reader.readAsArrayBuffer(file);
+            });
+        }
+
+        function calculatePairProfit(trades) {
+            console.log('Calculating pair profit for', trades.length, 'trades');
+            
+            // Group trades by pair
+            const pairData = {};
+            
+            trades.forEach(trade => {
+                const pair = trade.Pairs || 'UNKNOWN';
+                const total = parseFloat(trade.Total) || 0;
+                const fee = parseFloat(trade.Fee) || 0;
+                const amount = parseFloat(trade['Executed Amount']) || 0;
+                const price = parseFloat(trade['Filled Price']) || 0;
+                const side = trade.Side;
+                const time = trade.Time;
+                
+                if (!pairData[pair]) {
+                    pairData[pair] = {
+                        pair: pair,
+                        trades: [],
+                        totalBuyAmount: 0,
+                        totalBuyValue: 0,
+                        totalSellAmount: 0,
+                        totalSellValue: 0,
+                        totalFees: 0,
+                        currentPosition: {
+                            amount: 0,
+                            cost: 0,
+                            avgPrice: 0
+                        },
+                        realizedProfit: 0,
+                        unrealizedProfit: 0
+                    };
+                }
+                
+                // Add trade to history
+                pairData[pair].trades.push({
+                    time: time,
+                    side: side,
+                    amount: amount,
+                    price: price,
+                    total: total,
+                    fee: fee
+                });
+                
+                // Update totals
+                pairData[pair].totalFees += fee;
+                
+                if (side === 'Buy') {
+                    pairData[pair].totalBuyAmount += amount;
+                    pairData[pair].totalBuyValue += total;
+                    
+                    // Update current position
+                    const current = pairData[pair].currentPosition;
+                    const newAmount = current.amount + amount;
+                    const newCost = current.cost + total;
+                    
+                    current.amount = newAmount;
+                    current.cost = newCost;
+                    current.avgPrice = newCost / newAmount;
+                    
+                    console.log(`${pair} BUY: ${amount} @ ${price} = ${total}`);
+                    console.log(`  Position: ${current.amount} @ ${current.avgPrice.toFixed(6)} = ${current.cost.toFixed(2)}`);
+                    
+                } else if (side === 'Sell') {
+                    pairData[pair].totalSellAmount += amount;
+                    pairData[pair].totalSellValue += total;
+                    
+                    // Calculate realized profit from this sell
+                    const current = pairData[pair].currentPosition;
+                    if (current.amount > 0) {
+                        const buyValue = amount * current.avgPrice;
+                        const realizedProfit = total - buyValue - fee;
+                        pairData[pair].realizedProfit += realizedProfit;
+                        
+                        console.log(`${pair} SELL: ${amount} @ ${price} = ${total}`);
+                        console.log(`  Buy value: ${amount} * ${current.avgPrice.toFixed(6)} = ${buyValue.toFixed(2)}`);
+                        console.log(`  Profit: ${total} - ${buyValue.toFixed(2)} - ${fee} = ${realizedProfit.toFixed(2)}`);
+                        
+                        // Update position
+                        current.amount -= amount;
+                        if (current.amount <= 0) {
+                            current.amount = 0;
+                            current.cost = 0;
+                            current.avgPrice = 0;
+                            console.log(`  Position fully closed`);
+                        } else {
+                            current.cost = current.amount * current.avgPrice;
+                            console.log(`  New position: ${current.amount} @ ${current.avgPrice.toFixed(6)} = ${current.cost.toFixed(2)}`);
+                        }
+                    } else {
+                        console.log(`${pair} SELL: ${amount} @ ${price} = ${total} (no position to close)`);
+                    }
+                }
+            });
+            
+            // Calculate final statistics
+            Object.keys(pairData).forEach(pairKey => {
+                const pair = pairData[pairKey];
+                
+                // Calculate net profit (only realized profit)
+                pair.netProfit = pair.realizedProfit;
+                
+                // Calculate profit percentage based on total buy value
+                if (pair.totalBuyValue > 0) {
+                    pair.profitPercentage = (pair.netProfit / pair.totalBuyValue) * 100;
+                } else {
+                    pair.profitPercentage = 0;
+                }
+                
+                // Calculate trade count
+                pair.tradeCount = pair.trades.length;
+                pair.buyCount = pair.trades.filter(t => t.side === 'Buy').length;
+                pair.sellCount = pair.trades.filter(t => t.side === 'Sell').length;
+                
+                console.log(`${pair.pair} FINAL:`, {
+                    buyValue: pair.totalBuyValue.toFixed(2),
+                    sellValue: pair.totalSellValue.toFixed(2),
+                    realizedProfit: pair.realizedProfit.toFixed(2),
+                    fees: pair.totalFees.toFixed(2),
+                    currentPosition: pair.currentPosition.amount.toFixed(6),
+                    profitPercentage: pair.profitPercentage.toFixed(2) + '%'
+                });
+            });
+            
+            return pairData;
+        }
+
         async function debugHBAR() {
             const fileInput = document.getElementById('fileInput');
             const resultsDiv = document.getElementById('results');
@@ -61,16 +236,16 @@
             }
             
             const file = fileInput.files[0];
-            resultsDiv.innerHTML = '<div class="debug">Обработка файла...</div>';
+            resultsDiv.innerHTML = '<div class="loading">Обработка файла...</div>';
             
             try {
-                const dataParser = new DataParser();
-                const result = await dataParser.parseFile(file);
+                const processedData = await parseExcelFile(file);
+                const pairData = calculatePairProfit(processedData);
                 
-                console.log('Full result:', result);
+                console.log('Full result:', { processed: processedData, pairs: pairData });
                 
                 // Filter HBAR_USDT trades
-                const hbarTrades = result.processed.filter(trade => trade.Pairs === 'HBAR_USDT');
+                const hbarTrades = processedData.filter(trade => trade.Pairs === 'HBAR_USDT');
                 
                 console.log('HBAR_USDT trades:', hbarTrades);
                 
@@ -93,8 +268,8 @@
                 });
                 
                 // Show pair data
-                if (result.pairs && result.pairs.HBAR_USDT) {
-                    const hbarData = result.pairs.HBAR_USDT;
+                if (pairData && pairData.HBAR_USDT) {
+                    const hbarData = pairData.HBAR_USDT;
                     html += `
                         <h3>HBAR_USDT Summary:</h3>
                         <div class="result">
